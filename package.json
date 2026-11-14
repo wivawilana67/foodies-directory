@@ -4,7 +4,6 @@
   "private": true,
   "description": "Phone-friendly directory for the Foodies Checklist Google Sheet",
   "scripts": {
-    "push-dev": "cd apps-script && copy .clasp-dev.json .clasp.json && npx clasp push -f",
     "push-prod": "cd apps-script && copy .clasp-prod.json .clasp.json && npx clasp push -f",
     "pull-prod": "cd apps-script && copy .clasp-prod.json .clasp.json && npx clasp pull"
   },

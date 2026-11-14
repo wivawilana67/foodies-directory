@@ -27,7 +27,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 │   └── gcp-setup.md            # Google Cloud setup: verified vs open items, quota plan
 ├── apps-script/                # Backend (Apps Script, deployed with clasp)
 │   ├── CLAUDE.md               # File map, helpers, conventions, domain rules  ← read before editing
-│   ├── .clasp.example.json     # Template for the gitignored .clasp-dev.json / .clasp-prod.json
+│   ├── .clasp.example.json     # Template for the gitignored .clasp-prod.json
 │   └── src/                    # Pushed to Apps Script as-is (clasp rootDir)
 │       ├── appsscript.json     # Manifest: V8, Asia/Jakarta, web app runs as owner
 │       └── *.js                # Api, Config, Sheet, Places, MapsLink, Usage, Backfill, Setup
@@ -128,11 +128,11 @@ Use the `development-documentation` skill.
 
 ## 5. Environments & Data Safety
 
-- **Two backend targets:** dev (a copy of the sheet + its own script) and prod (the real "Foodies Checklist"). Default to dev; touch prod only when the owner asks in that request.
+- **One backend target: prod.** There is no dev environment. The script is bound to the real "Foodies Checklist", so every push, deploy and editor run touches live data. Do any of them only when the owner asks in that request.
 - **Never committed (public repo):** `.clasp*.json` except the example, script IDs, the spreadsheet ID, the web app URL, `API_TOKEN`, `PLACES_API_KEY`.
-- **Backend: deploy only with the root npm scripts.** `npm run push-dev` / `push-prod` push code; the web app URL only serves the new code after the owner updates the existing deployment to a new version (README → Deploy).
+- **Backend: deploy only with the root npm scripts.** `npm run push-prod` pushes code; the web app URL only serves the new code after the owner updates the existing deployment to a new version (README → Deploy).
 - **Front end: `master` is prod.** Every push to `master` that touches `web/` publishes it through `.github/workflows/pages.yml`. Nothing else deploys the front end.
-- **Backfill** runs from the Apps Script editor, dev first, then 10–20 prod rows, then the rest. Never run it on prod without the owner's go-ahead.
+- **Backfill** runs from the Apps Script editor, only with the owner's go-ahead: take a backup first (File → Make a copy, or a named version in Version history), run one batch of 15 rows, check it, then the rest.
 - **`clasp pull` overwrites local files.** Commit first.
 
 ---

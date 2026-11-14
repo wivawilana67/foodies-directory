@@ -79,20 +79,22 @@ flowchart LR
 
 ### Where the IDs and secrets live (never in git)
 
-| Value | Dev | Prod | Committed? |
-|---|---|---|---|
-| Apps Script ID | `apps-script/.clasp-dev.json` → `scriptId` | `apps-script/.clasp-prod.json` → `scriptId` | No — gitignored; only `.clasp.example.json` is committed |
-| Sheet ID | Script Property `SPREADSHEET_ID` in the dev script | Script Property `SPREADSHEET_ID` in the prod script | No — stored in Apps Script |
-| Places API key, token | Script Properties `PLACES_API_KEY`, `API_TOKEN` | same, in the prod script | No |
-| Web app `/exec` URL | Entered on the phone (Settings) | Entered on the phone (Settings) | No |
+There is one environment: the script bound to the real "Foodies Checklist" (no dev copy).
+
+| Value | Where | Committed? |
+|---|---|---|
+| Apps Script ID | `apps-script/.clasp-prod.json` → `scriptId` | No — gitignored; only `.clasp.example.json` is committed |
+| Sheet ID | Script Property `SPREADSHEET_ID` | No — stored in Apps Script |
+| Places API key, token | Script Properties `PLACES_API_KEY`, `API_TOKEN` | No |
+| Web app `/exec` URL | Entered on each phone (Settings) | No |
 
 Keep a copy of each in your password manager so a new laptop or phone can be set up again.
 
 ### Backend
 1. `npm install` in the repo root, then `npx clasp login`.
-2. Make a **dev copy** of the sheet (File → Make a copy). Steps 3–8 run against the copy first, then again for prod.
-3. In the sheet copy, open Extensions → Apps Script to create its bound project (later the same in the real sheet for prod). In the editor, Project Settings → IDs → copy the **Script ID**. Copy `apps-script/.clasp.example.json` to `apps-script/.clasp-dev.json` (and `.clasp-prod.json`) and paste each Script ID. These files are gitignored.
-4. `npm run push-dev`. The push replaces every file in the project (including the default `Code.gs`).
+2. Take a backup of the sheet (File → Make a copy, or name a version in Version history). There is no dev copy, so everything below runs on live data.
+3. In the sheet, open Extensions → Apps Script to open its bound project. In the editor, Project Settings → IDs → copy the **Script ID**. Copy `apps-script/.clasp.example.json` to `apps-script/.clasp-prod.json` and paste the Script ID. The file is gitignored.
+4. `npm run push-prod`. The push replaces every file in the project.
 5. In the editor → Project Settings → Script Properties, add `PLACES_API_KEY`, `API_TOKEN` (generate 32+ random characters in your password manager) and `SPREADSHEET_ID` (from the sheet URL).
 6. Run `checkColumns`, read the log, fix `USER_FIELDS` in `apps-script/src/Config.js` to match the real headers, push again.
 7. Run `addAppColumns`. Run `backfillBatch` once and check the 15 rows.
@@ -107,7 +109,7 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 6. Merge `develop` → `master`; the "Deploy web to GitHub Pages" workflow publishes `web/`.
 
 ### Deploy changes
-- Backend: `npm run push-dev` (or `push-prod`), then Deploy → Manage deployments → edit the existing deployment → New version. The URL stays the same.
+- Backend: `npm run push-prod`, then Deploy → Manage deployments → edit the existing deployment → New version. The URL stays the same.
 - Front end: PR `develop` → `master` and merge. The workflow deploys automatically.
 
 ## Install on the phones

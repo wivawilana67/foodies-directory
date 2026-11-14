@@ -1,6 +1,6 @@
 # apps-script — Developer and Agent Guide
 
-The backend: one Apps Script project **bound to its sheet** (dev: the sheet copy; prod: "Foodies Checklist"), deployed as a web app that **runs as the owner** and accepts anonymous requests, which are rejected unless they carry the shared token. It still opens the sheet by ID (Script Property `SPREADSHEET_ID`) rather than `getActiveSpreadsheet()`, so the code does not depend on how the project is attached. Dev and prod are two script projects with the same code and different Script Properties.
+The backend: one Apps Script project **bound to the real "Foodies Checklist" sheet** (prod; there is no dev environment), deployed as a web app that **runs as the owner** and accepts anonymous requests, which are rejected unless they carry the shared token. It still opens the sheet by ID (Script Property `SPREADSHEET_ID`) rather than `getActiveSpreadsheet()`, so the code does not depend on how the project is attached.
 
 Bound-project caveat: anyone with edit access to the sheet can open Extensions → Apps Script and read the code and Script Properties (API key, token).
 
@@ -13,7 +13,7 @@ Read first: root `CLAUDE.md` (style, workflow, git), root `README.md` (Business 
 ```
 apps-script/
 ├── CLAUDE.md               # This file
-├── .clasp.example.json     # Copy to .clasp-dev.json / .clasp-prod.json (gitignored) and set scriptId
+├── .clasp.example.json     # Copy to .clasp-prod.json (gitignored) and set scriptId
 └── src/                    # clasp rootDir: everything here is pushed
     ├── appsscript.json     # V8, Asia/Jakarta, STACKDRIVER logging, webapp executeAs USER_DEPLOYING / ANYONE_ANONYMOUS
     ├── Config.js           # Sheet name, header map, Script Property names, limits, getProp_
@@ -120,7 +120,7 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 
 ## 6. Deploy and Maintenance Notes
 
-- `npm run push-dev` / `npm run push-prod` copy `.clasp-<env>.json` to `.clasp.json` and run `clasp push -f`.
+- `npm run push-prod` copies `.clasp-prod.json` to `.clasp.json` and runs `clasp push -f`, which replaces every file in the bound project. The project held only a recorded macro (`macros.js`, `test`) before this repo's first push.
 - After a push, update the **existing** deployment (Deploy → Manage deployments → edit → New version) so the `/exec` URL stays the same on both phones. A new deployment means a new URL to re-enter on each phone.
 - First run on a sheet: `checkColumns` → fix `USER_FIELDS` → `addAppColumns` → set Script Properties → deploy.
 - Keep this file current (root `CLAUDE.md` § 4).

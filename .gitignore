@@ -1,0 +1,10 @@
+node_modules/
+
+# Local clasp targets hold script IDs; this repo is public
+**/.clasp*.json
+!apps-script/.clasp.example.json
+.clasprc.json
+
+# Local Claude Code settings and agent worktrees
+.claude/settings.local.json
+.claude/worktrees/

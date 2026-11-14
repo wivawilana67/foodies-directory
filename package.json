@@ -1,0 +1,16 @@
+{
+  "name": "foodies-directory",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Phone-friendly directory for the Foodies Checklist Google Sheet",
+  "scripts": {
+    "push-dev": "cd apps-script && copy .clasp-dev.json .clasp.json && npx clasp push -f",
+    "push-prod": "cd apps-script && copy .clasp-prod.json .clasp.json && npx clasp push -f",
+    "pull-prod": "cd apps-script && copy .clasp-prod.json .clasp.json && npx clasp pull",
+    "deploy-web": "git subtree push --prefix web origin gh-pages"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.3.0",
+    "@types/google-apps-script": "^2.0.8"
+  }
+}

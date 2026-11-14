@@ -1,6 +1,8 @@
 # apps-script — Developer and Agent Guide
 
-The backend: one standalone Apps Script project, deployed as a web app that **runs as the owner** and accepts anonymous requests, which are rejected unless they carry the shared token. It opens the sheet by ID (Script Property `SPREADSHEET_ID`), so dev and prod are two script projects with the same code and different Script Properties.
+The backend: one Apps Script project **bound to its sheet** (dev: the sheet copy; prod: "Foodies Checklist"), deployed as a web app that **runs as the owner** and accepts anonymous requests, which are rejected unless they carry the shared token. It still opens the sheet by ID (Script Property `SPREADSHEET_ID`) rather than `getActiveSpreadsheet()`, so the code does not depend on how the project is attached. Dev and prod are two script projects with the same code and different Script Properties.
+
+Bound-project caveat: anyone with edit access to the sheet can open Extensions → Apps Script and read the code and Script Properties (API key, token).
 
 Read first: root `CLAUDE.md` (style, workflow, git), root `README.md` (Business Flow, Data Flow) and `docs/decisions.md`.
 

@@ -91,8 +91,8 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 ### Backend
 1. `npm install` in the repo root, then `npx clasp login`.
 2. Make a **dev copy** of the sheet (File → Make a copy). Steps 3–8 run against the copy first, then again for prod.
-3. Create a standalone Apps Script project (script.google.com → New project), one for dev and later one for prod. Copy `apps-script/.clasp.example.json` to `apps-script/.clasp-dev.json` (and `.clasp-prod.json`) and paste each Script ID. These files are gitignored.
-4. `npm run push-dev`.
+3. In the sheet copy, open Extensions → Apps Script to create its bound project (later the same in the real sheet for prod). In the editor, Project Settings → IDs → copy the **Script ID**. Copy `apps-script/.clasp.example.json` to `apps-script/.clasp-dev.json` (and `.clasp-prod.json`) and paste each Script ID. These files are gitignored.
+4. `npm run push-dev`. The push replaces every file in the project (including the default `Code.gs`).
 5. In the editor → Project Settings → Script Properties, add `PLACES_API_KEY`, `API_TOKEN` (generate 32+ random characters in your password manager) and `SPREADSHEET_ID` (from the sheet URL).
 6. Run `checkColumns`, read the log, fix `USER_FIELDS` in `apps-script/src/Config.js` to match the real headers, push again.
 7. Run `addAppColumns`. Run `backfillBatch` once and check the 15 rows.

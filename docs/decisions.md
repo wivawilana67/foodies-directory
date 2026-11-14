@@ -31,7 +31,8 @@ The repo is public (free GitHub Pages), so no secrets in the repo.
 | D7 | Spend counter in code: daily + monthly counts in Script Properties; lookups refused past a limit under the free allowance | Cap our own usage; does not cover a leaked key (see `gcp-setup.md`) | Built (`Usage.js`, defaults 50/day, 900/month) |
 | D8 | Backfill only fills empty cells, never overwrites user data; test on 10–20 rows first | The sheet holds years of hand-entered data | Built (`Backfill.js`, 15 rows per run) |
 | D9 | API key only in Script Properties; web app runs as the owner; requests without the token are rejected; the sheet stays Restricted, shared only with the partner | Least exposure | Built |
-| D10 | Standalone script that opens the sheet by `SPREADSHEET_ID` (not bound to the sheet) | Same code for dev and prod; dev runs against a sheet copy | Built |
+| D10 | Script opens the sheet by `SPREADSHEET_ID`, never `getActiveSpreadsheet()` | Same code for dev and prod, whatever the project is attached to | Built |
+| D10a | The project is bound to its sheet (owner's choice, 2026-11-14), not standalone | Script lives with the sheet; trade-off: sheet editors can read the code and Script Properties | Built |
 | D11 | Columns are found by header text, never by index; the app owns 8 extra columns appended at the right | The real headers are not confirmed yet, and the user may reorder columns | Built; user header names **unverified** |
 | D12 | The phone sends only a `placeId` to save; the server takes place data from its 10-minute lookup cache | Never trust place data computed in the browser; avoids a second paid call | Built |
 | D13 | The backend is split into small files by concern (Api, Sheet, Places, MapsLink, Usage, Backfill, Setup, Config) | Avoid one large backend file; each file maps to one section of `apps-script/CLAUDE.md` | Built |

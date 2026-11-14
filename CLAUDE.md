@@ -2,7 +2,7 @@
 
 A phone-friendly directory of the restaurants in the Google Sheet "Foodies Checklist" (tab "Food List"), built for two people (Android first, iPhone too). Two parts that talk over one HTTPS endpoint:
 
-- `apps-script/` — backend: a standalone Google Apps Script web app. Reads and writes the sheet, calls the Places API (New), holds the API key, counts spend, runs the backfill.
+- `apps-script/` — backend: a Google Apps Script web app bound to the sheet. Reads and writes the sheet, calls the Places API (New), holds the API key, counts spend, runs the backfill.
 - `web/` — front end: an installable web app (PWA) served by GitHub Pages. List, filters, "near me", add a place.
 
 The Google Sheet is the database. **This repo is public** (free GitHub Pages): no secret, token, script ID, sheet ID or deployment URL is ever committed.

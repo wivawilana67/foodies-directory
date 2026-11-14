@@ -8,7 +8,7 @@ The phone app: a static PWA with no build step, served from GitHub Pages under a
 
 ```
 web/
-├── CLAUDE.md               # This file (also published to gh-pages; it holds nothing secret)
+├── CLAUDE.md               # This file (published to Pages with the rest of web/; it holds nothing secret)
 ├── index.html              # One page, three views: #view-list, #view-add, #view-setup
 ├── styles.css              # Design tokens on :root (light + dark), layout, cards, buttons
 ├── app.js                  # UI: render list, filters, near me, lookup + save, setup, share target, SW register
@@ -82,5 +82,5 @@ web/
 
 ## 7. Deploy Notes
 
-- `npm run deploy-web` (from `master`) pushes the `web/` folder to the `gh-pages` branch with `git subtree push`. GitHub Pages serves `gh-pages` / root.
+- `master` is prod. A push to `master` that touches `web/**` runs `.github/workflows/pages.yml`, which uploads `web/` as-is and deploys it to GitHub Pages (source: GitHub Actions). It can also be run by hand (Actions → Run workflow); the deploy job runs only on `master`.
 - Keep this file current (root `CLAUDE.md` § 4).

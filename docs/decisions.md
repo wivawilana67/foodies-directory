@@ -35,10 +35,11 @@ The repo is public (free GitHub Pages), so no secrets in the repo.
 | D11 | Columns are found by header text, never by index; the app owns 8 extra columns appended at the right | The real headers are not confirmed yet, and the user may reorder columns | Built; user header names **unverified** |
 | D12 | The phone sends only a `placeId` to save; the server takes place data from its 10-minute lookup cache | Never trust place data computed in the browser; avoids a second paid call | Built |
 | D13 | The backend is split into small files by concern (Api, Sheet, Places, MapsLink, Usage, Backfill, Setup, Config) | Avoid one large backend file; each file maps to one section of `apps-script/CLAUDE.md` | Built |
-| D14 | Front end is deployed by `git subtree push --prefix web origin gh-pages` (npm `deploy-web`), not GitHub Actions | Pages "deploy from branch" only serves `/` or `/docs`; an Actions deploy needs `pages: write` + `id-token: write` permissions and a workflow to maintain | Built |
+| D14 | Front end is deployed by `git subtree push --prefix web origin gh-pages` (npm `deploy-web`), not GitHub Actions | Pages "deploy from branch" only serves `/` or `/docs`; an Actions deploy needs `pages: write` + `id-token: write` permissions and a workflow to maintain | **Reversed** by D18 |
 | D15 | Service worker is network-first | Phones get new versions on the next online launch without cache-version bumps | Built |
 | D16 | One README for people; a CLAUDE.md per folder for detail; a `development-documentation` skill keeps them in sync | Same three-layer doc structure as the owner's other Apps Script repo, minus duplicate per-folder READMEs | Built |
 | D17 | Script time zone `Asia/Jakarta` | **Assumption** (billing currency is IDR); only affects when the daily counter resets | Built; confirm |
+| D18 | `master` is prod, `develop` is the base (GitHub default branch, PR base). A GitHub Actions workflow publishes `web/` to Pages on every push to `master`; no `gh-pages` branch | Owner's choice: one prod branch, deploy by merging. The deploy job alone gets `pages: write` + `id-token: write`; actions are SHA-pinned, Dependabot bumps them | Built (`.github/workflows/pages.yml`) |
 
 ## Open
 

@@ -1,13 +1,14 @@
 # Foodies Directory
 
-Our restaurant list on the phone. The Google Sheet "Foodies Checklist" stays the database; this app adds:
+Our personal directory of places to eat, on the phone. A Google Sheet is the database (same columns as the old "Foodies Checklist"); this app adds:
 
-- **Near me** — sort every place by distance from where you stand.
-- **Filter by craving and city**, and show only places not tried yet.
-- **Add a place** by pasting a Google Maps link, sharing from Google Maps (Android), or typing a name. Google fills in the address, coordinates, category and Maps link.
-- **Backfill** of the ~230 existing rows with the same Google data, without touching anything already typed in the sheet.
+- **All / Wishlist / Near me** tabs: every place sorted by our scores, the places not tried yet, and everything sorted by distance from where you stand.
+- **A full place record**: country, city, district, landmark, Tipe / Genre / Jenis, price, Google Maps and Instagram links, a score and a review from each of us.
+- **Dishes per place**: what we ate, the price, liked or not, a note; starred dishes become the place's "Best Dish".
+- **Add a place** by pasting a Google Maps link, sharing from Google Maps (Android), or typing a name. Google fills in the country, city, district, coordinates and Maps link. Places not on Google Maps can be added by name.
+- **Edit everything from the phone**, with a check that refuses to overwrite a change made on the other phone or in the sheet.
 
-Built for two people, Android first, iPhone too. Free tools only.
+Built for two people. Android: installs as an app with a home-screen icon. iPhone: works in Safari from the URL (home-screen icon optional). Free tools only.
 
 ## Repository Layout
 
@@ -32,18 +33,27 @@ Built for two people, Android first, iPhone too. Free tools only.
 ## Business Flow
 
 ### Find a place
-1. Open the app → **Places** shows the cached list at once, then refreshes from the sheet.
-2. Type in search, pick a **craving** (Google category or your Tipe/Genre/Jenis labels) or a **city**, tick **Not tried yet** (shown when the sheet has a tried column).
-3. Tap **Near me** → the phone asks for location → the list is sorted by distance. Location stays on the phone.
-4. Tap **Maps** on a card to open it in Google Maps.
+1. Open the app → **All** shows the saved list at once, then refreshes from the sheet. Places are sorted by the average of both scores (ULTRA HEAVEN 🔥 > HEAVEN! > 10 … 1), unrated last.
+2. **Wishlist** shows only places not tried yet. **Near me** asks for location and sorts by distance (with a "Wishlist only" switch). Location stays on the phone.
+3. Search by name, city, dish or craving; **Filters** narrow by Tipe, Genre, Jenis or City. Closed places are hidden unless **Show closed places** is ticked.
+4. Tap a card → the place: address, labels, both scores and reviews, price, best dish, dishes, **Maps** and **Instagram** buttons.
 
 ### Add a place
-1. **Android:** in Google Maps, Share → Foodies. **iPhone or anywhere:** copy the Maps link, open **Add**, tap **Paste**. Or type a name, e.g. "Bakmi GM Bandung".
-2. Tap **Look up** → up to 5 matches from Google.
-3. Optionally fill your labels (Tipe, Genre, Jenis), then **Save** on the right match.
-4. A new row is appended to "Food List". If the place is already there, nothing is written and the app says so.
+1. **Android:** in Google Maps, Share → Foodies. **iPhone or anywhere:** copy the Maps link, open **Add**, tap **Paste** (or long-press paste). Or type a name, e.g. "Bakmi GM Bandung".
+2. Tap **Search** → up to 5 matches from Google → **Pick** the right one.
+3. The place form opens, filled from Google (name, country, city, district, Maps link). Fix anything, add Tipe / Genre / Jenis (pick from the Master lists or **+ Add new…**), scores, reviews, price, Instagram → **Save**.
+4. A row is appended to "Food List". If the place is already there, nothing is written and the app opens the existing one.
+5. Not on Google Maps? **Add it by name** opens the same form without Google data.
 
-### Backfill old rows (owner, once)
+### Update a place
+- **Mark as tried / Move to wishlist** on the place, or **Edit** to change any field. Only changed fields are sent; if someone changed the same field on the other phone or in the sheet meanwhile, the save is refused with "Refresh and try again".
+- **Dishes:** **+ Add dish** (name, price, 👍 / 👎, note, ⭐ best). Tap a dish to edit it; **Delete** asks for a second tap. Starring or unstarring rewrites the place's Best Dish.
+
+### Install
+- **Android (Chrome):** the **Install app** button in the top bar (or Chrome's menu → Install app).
+- **iPhone (Safari):** works from the URL; Settings shows how to add a home-screen icon (Share → Add to Home Screen).
+
+### Backfill old rows (owner, at migration)
 Run `backfillBatch` in the Apps Script editor: 15 rows per run, resumable. Check the result in the sheet, then keep running until it logs 0 remaining. See `apps-script/CLAUDE.md` § 5.5.
 
 ---
@@ -53,7 +63,7 @@ Run `backfillBatch` in the Apps Script editor: 15 rows per run, resumable. Check
 ```mermaid
 flowchart LR
   Phone["PWA on phone<br/>(GitHub Pages)"] -- "POST text/plain {action, token}" --> GAS["Apps Script web app<br/>(runs as owner)"]
-  GAS -- "read / append / fill empty cells" --> Sheet[("Google Sheet<br/>Food List")]
+  GAS -- "read / append / edit with conflict check" --> Sheet[("Google Sheet<br/>Food List, Dishes, Master")]
   GAS -- "SearchText / GetPlace + API key" --> Places["Places API (New)"]
   GAS -- "resolve short link" --> Maps["maps.app.goo.gl"]
   Phone -. "location (on device only)" .-> Phone
@@ -61,17 +71,21 @@ flowchart LR
 
 | Process | Entry point | Reads | Writes | Places calls |
 |---|---|---|---|---|
-| Load list | `list` → `listPlaces_` | Food List | — | 0 |
+| Load list | `list` → `listPlaces_` | Food List, Dishes, Master | `App ID` for rows typed in the sheet without one | 0 |
 | Look up | `lookup` → `lookup_` | — | Script cache (10 min), `USAGE` | 1 |
-| Save | `add` → `addPlace_` | Food List, script cache | Food List (append row) | 0–1 |
+| Add place | `add` → `addPlace_` | Food List, Master, script cache | Food List (append row), Master (new Tipe/Genre/Jenis) | 0–1 |
+| Edit place | `update` → `updatePlace_` | Food List, Master | Changed Food List cells, UniqueName / Hyperlink, dish UniqueName, Master | 0 |
+| Save dish | `saveDish` → `saveDish_` | Food List, Dishes | Dishes (append or edit row), place's Best Dish | 0 |
+| Delete dish | `deleteDish` → `deleteDish_` | Dishes | Dishes (delete row), place's Best Dish | 0 |
 | Backfill | `backfillBatch` (editor) | Food List | Empty app cells + `Lookup Status` | 1 per row |
-| Set up | `checkColumns`, `addAppColumns` (editor) | Header row | Header row (append app headers) | 0 |
+| Set up | `setupSheet`, `checkColumns`, `addAppColumns` (editor) | Header rows | Header rows, Dishes and Master tabs | 0 |
 
-**App-owned columns** (appended by `addAppColumns`): Place ID, Lat, Lng, Address, Area, Google Category, Google Maps URL, Lookup Status.
-**User columns** read by header name (unverified names, see `apps-script/src/Config.js`): Name, Link, City, Tipe, Genre, Jenis, HEAVEN, Price, Tried.
+**"Food List" user columns** (the old sheet's names): UniqueName, Nama Resto, Hyperlink, Negara, Kota, Lokasi, Jalan / Patokan, Rating (person 1), Rating (person 2), Range Harga (Per Orang), Tipe Foodies, Genre Foodies, Jenis Foodies, Best Dish, Review (person 1), Review (person 2), Link Instagram, Link Google, Closed, Have Tried?. The two names come from Script Property `PEOPLE`.
+**App columns:** App ID, Place ID, Lat, Lng, Address, Google Category, Added At, Lookup Status.
+**"Dishes":** Dish ID, App ID, UniqueName, Dish, Price, Liked, Best, Note, Added At. **"Master":** Ratings, Tipe Foodies, Genre Foodies, Jenis Foodies.
 
-**Script Properties:** `PLACES_API_KEY`, `API_TOKEN`, `SPREADSHEET_ID`, optional `DAILY_LIMIT` (50) / `MONTHLY_LIMIT` (900), and `USAGE` (written by code).
-**On each phone (localStorage):** backend URL, token, last list.
+**Script Properties:** `PLACES_API_KEY`, `API_TOKEN`, `SPREADSHEET_ID`, `PEOPLE`, optional `DAILY_LIMIT` (50) / `MONTHLY_LIMIT` (900), and `USAGE` (written by code).
+**On each phone (localStorage):** backend URL, token, last list (places, dishes, Master lists, names).
 
 ---
 
@@ -79,7 +93,7 @@ flowchart LR
 
 ### Where the IDs and secrets live (never in git)
 
-There is one environment: the script bound to the real "Foodies Checklist" (no dev copy).
+There is one environment (no dev copy): the Apps Script project in `.clasp-prod.json`, working on the spreadsheet in `SPREADSHEET_ID`. Work happens in a new spreadsheet; the old "Foodies Checklist" is migrated later.
 
 | Value | Where | Committed? |
 |---|---|---|
@@ -92,13 +106,13 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 
 ### Backend
 1. `npm install` in the repo root, then `npx clasp login`.
-2. Take a backup of the sheet (File → Make a copy, or name a version in Version history). There is no dev copy, so everything below runs on live data.
-3. In the sheet, open Extensions → Apps Script to open its bound project. In the editor, Project Settings → IDs → copy the **Script ID**. Copy `apps-script/.clasp.example.json` to `apps-script/.clasp-prod.json` and paste the Script ID. The file is gitignored.
+2. Take a backup of the sheet if it holds data (File → Make a copy, or name a version in Version history). There is no dev copy, so everything below runs on live data.
+3. In the Apps Script editor, Project Settings → IDs → copy the **Script ID**. Copy `apps-script/.clasp.example.json` to `apps-script/.clasp-prod.json` and paste the Script ID. The file is gitignored.
 4. `npm run push-prod`. The push replaces every file in the project.
-5. In the editor → Project Settings → Script Properties, add `PLACES_API_KEY`, `API_TOKEN` (generate 32+ random characters in your password manager) and `SPREADSHEET_ID` (from the sheet URL).
-6. Run `checkColumns`, read the log, fix `USER_FIELDS` in `apps-script/src/Config.js` to match the real headers, push again.
-7. Run `addAppColumns`. Run `backfillBatch` once and check the 15 rows.
-8. Deploy → New deployment → Web app, execute as **Me**, access **Anyone**. Copy the `/exec` URL to your password manager.
+5. In the editor → Project Settings → Script Properties, add `PLACES_API_KEY`, `API_TOKEN` (32+ random characters, e.g. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`), `SPREADSHEET_ID` (from the sheet URL) and `PEOPLE` (the two names, comma-separated, as they should appear in the Rating / Review headers).
+6. New, empty sheet: run `setupSheet` (writes the "Food List" headers, creates "Dishes" and "Master"), then fill the Master lists (Ratings in order worst → best, Tipe, Genre, Jenis). Sheet with data (migration): run `addAppColumns` instead.
+7. Run `checkColumns` and confirm nothing is MISSING.
+8. Deploy → New deployment → Web app, execute as **Me**, access **Anyone**. Copy the `/exec` URL to your password manager. Opening it in a browser only shows `{"ok":true}`; the app talks to it with POST.
 
 ### Front end
 1. Push this repo to GitHub (public), both `develop` and `master`.
@@ -114,8 +128,8 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 
 ## Install on the phones
 
-- **Android (Chrome):** open the GitHub Pages URL → menu → **Install app** (or Add to Home screen). Open it, enter the backend URL and token in Settings. "Foodies" now appears in the Share menu of Google Maps.
-- **iPhone (Safari):** open the URL → Share → **Add to Home Screen**. Open it from the home screen, enter the backend URL and token. To add a place, copy the Maps link and use **Paste** in Add.
+- **Android (Chrome):** open the GitHub Pages URL → tap **Install app** in the top bar (or Chrome menu → Install app). Open it, enter the backend URL and token in Settings. "Foodies" now appears in the Share menu of Google Maps.
+- **iPhone (Safari):** open the URL and enter the backend URL and token; everything works in Safari. Optional: Share → **Add to Home Screen** for an icon. To add a place, copy the Maps link and use **Paste** in Add.
 
 ## Keeping This README Current
 

@@ -9,9 +9,15 @@ The phone app: a static PWA with no build step, served from GitHub Pages under a
 ```
 web/
 ├── CLAUDE.md               # This file (published to Pages with the rest of web/; it holds nothing secret)
-├── index.html              # One page, three views: #view-list, #view-add, #view-setup
-├── styles.css              # Design tokens on :root (light + dark), layout, cards, buttons
-├── app.js                  # UI: render list, filters, near me, lookup + save, setup, share target, SW register
+├── index.html              # One page: views #view-list, #view-place, #view-form, #view-add, #view-dish, #view-setup + bottom tab bar
+├── styles.css              # Design tokens on :root (light + dark), layout, tab bar, cards, detail, dishes
+├── app.js                  # Entry: init, refresh, tabs, Near me, settings, install button, Back handling
+├── state.js                # Shared in-memory data + change hook (onChange / changed)
+├── ui.js                   # DOM helpers, formatting, Maps link, show(view)
+├── list.js                 # All / Wishlist / Near me list: filters, score sort, distance sort, cards
+├── place.js                # Place detail, add / edit form, update with conflict check
+├── dishes.js               # Dish list on the detail view, dish form, delete
+├── add.js                  # Add tab: lookup, results, manual add, Paste, Android share target
 ├── api.js                  # call(action, data), settings + list cache in localStorage
 ├── geo.js                  # distanceKm (haversine), getPosition (Geolocation API)
 ├── sw.js                   # Service worker: network-first for own files, cache fallback offline
@@ -19,16 +25,34 @@ web/
 └── icons/                  # icon-192.png, icon-512.png (also maskable), apple-touch-icon.png (180)
 ```
 
+Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`; `list` → `place`; `add` → `place`; `place` → `dishes`; all → `state`, `ui`, `api`. Cross-module re-rendering goes through `changed()` (list) and the `popstate` handler in `app.js` (detail view).
+
 ---
 
 ## 2. File Reference
 
 | File | Key functions / parts |
 |---|---|
-| `app.js` | `init`, `show(view)`, `render`, `renderFilters`, `placeCard`, `mapsHref`, `refresh`, `toggleNearMe`, `lookup`, `save`, `paste`, `saveSetup`, `readShare` |
+| `app.js` | `init`, `apply(data)`, `refresh`, `locate`, `selectTab`, `saveSetup`, `initInstall`, `onChange` handler (cache + re-render), `popstate` handler |
+| `state.js` | `state`, `onChange`, `changed`, `placeById`, `dishesOf`, `upsert` |
+| `ui.js` | `$`, `el`, `text`, `httpsUrl`, `areaOf`, `coordsOf`, `formatKm`, `mapsHref`, `show(view, push)` |
+| `list.js` | `renderFilters`, `renderList`, `placeCard`, `averageRank` (score rank = position in Master `rating`) |
+| `place.js` | `openPlace`, `renderPlace`, `openForm({place|google|manual})`, `save`, `update`, `formFields`, `choiceControl` |
+| `dishes.js` | `dishList`, `openDish`, `initDishes` (save, two-tap delete) |
+| `add.js` | `initAdd`, `lookup`, `resultCard`, `paste`, `addManual`, `readShare` |
 | `api.js` | `call`, `getSettings`, `saveSettings`, `readCache`, `writeCache` |
 | `geo.js` | `distanceKm`, `getPosition` |
 | `sw.js` | `SHELL` list (add every new file here), `install` / `activate` / `fetch` handlers |
+
+### Backend calls
+
+| Call | Where | Sends |
+|---|---|---|
+| `list` | `app.js` `refresh`, `saveSetup` | — |
+| `lookup` | `add.js` | `input` |
+| `add` | `place.js` `save` | `placeId` (or empty for manual), `fields` (every form field) |
+| `update` | `place.js` `update` | `id`, `changes` (changed fields only), `original` (their values when the form opened) |
+| `saveDish` / `deleteDish` | `dishes.js` | `dish{id?, place, name, price, liked, best, note}` / `id` |
 
 ### localStorage keys (per device)
 
@@ -36,7 +60,7 @@ web/
 |---|---|
 | `foodies.backendUrl` | Apps Script `/exec` URL (must match `https://script.google.com/macros/s/…/exec`) |
 | `foodies.token` | Shared token |
-| `foodies.cache` | Last `list` response `{places, fields}` for offline / instant start |
+| `foodies.cache` | Last data `{places, dishes, options, people, fields}` for offline / instant start; rewritten after every change |
 
 ---
 
@@ -45,11 +69,13 @@ web/
 | Need | Use |
 |---|---|
 | Call the backend | `call('action', {...})` — adds the token, throws on `ok:false` |
-| Build DOM safely | `el(tag, props, ...children)` with `textContent` |
-| Trimmed text from any value | `text(v)` |
-| A place's categories / city | `categoriesOf(p)` / `areaOf(p)` (user city first, then Google area) |
+| Build DOM safely | `el(tag, props, ...children)` with `textContent` (drops `null` / `''` / `false` children) |
+| Trimmed text from any value / a safe external link | `text(v)` / `httpsUrl(v)` |
+| A place's "district, city" | `areaOf(p)` |
 | A place's coordinates | `coordsOf(p)` → `{lat, lng}` or `null` |
-| A link to open in Google Maps | `mapsHref(p)` |
+| A link to open in Google Maps | `mapsHref(p)` (`Link Google`, else a Maps search) |
+| Switch view | `show(view, push)`; `push` adds a history entry so the phone's Back returns |
+| Update data and re-render lists | `upsert(state.places | state.dishes, item)` then `changed()` |
 
 ---
 
@@ -58,15 +84,21 @@ web/
 - Vanilla ES modules, no framework, no CDN, no build. `node --check` each changed file.
 - Every storage access is wrapped in `try/catch` (private mode can block it); the app must still run without storage.
 - Place text goes into the DOM with `textContent`. Links from the sheet are used only when they start with `https://`.
-- Status lines (`#status`, `#add-status`, `#setup-status`) carry `role="status"`; touch targets are at least 44 px.
+- Status lines (`#status`, `#place-status`, `#form-status`, `#add-status`, `#dish-status`, `#setup-status`) carry `role="status"`; touch targets are at least 44 px.
+- No browser dialogs (`alert` / `confirm`): destructive actions use a second tap.
+- The phone never sends Google place data to save; it sends `placeId` and the user's own fields (`docs/decisions.md` D12).
 
 ---
 
 ## 5. Platform Rules
 
+- **Android = installable app.** Chrome needs the manifest (`display: standalone`, 192 / 512 + maskable icons, `start_url`, `scope`), the service worker and HTTPS. `initInstall` keeps Chrome's `beforeinstallprompt` and shows **Install app** in the top bar; it hides after `appinstalled`.
+- **iPhone = everything works in Safari from the URL**; a home-screen icon is optional. No feature may depend on install, the share target or clipboard read. Settings shows an "Add to Home Screen" hint on iOS when not already installed.
+- **Bottom tab bar** is fixed with `padding-bottom: env(safe-area-inset-bottom)` (needs `viewport-fit=cover`, set in `index.html`), and `main` has matching bottom padding.
 - **Location never leaves the phone.** `getPosition` → `distanceKm` → sort. Do not send coordinates to the backend.
-- **Share target is Android only.** `share_target` opens `./?title=&text=&url=`; `readShare` moves that into the Add box and cleans the URL. iPhone PWAs cannot receive shares: the user copies the link and uses **Paste** or long-press paste.
+- **Share target is Android only.** `share_target` opens `./?title=&text=&url=`; `readShare` moves that into the Add box and cleans the URL. iPhone users copy the link and use **Paste** or long-press paste.
 - **Clipboard read** (`navigator.clipboard.readText`) may be refused; the fallback is a message asking for a manual paste.
+- **Back button:** sub-views (place, form, dish, settings) are pushed with `history.pushState`; `popstate` re-renders the detail view and shows the previous view. Tabs replace the current entry.
 - **Service worker** is network-first, so a deploy reaches phones on their next online launch with no cache-version bump. New files must be added to `SHELL` to work offline.
 - **Backend URL and token** are entered on first launch (Settings view) and stored only in `localStorage`; never hardcode them.
 
@@ -75,8 +107,10 @@ web/
 ## 6. Design Preferences
 
 - Tokens in `styles.css` `:root`: `--bg`, `--surface`, `--text`, `--muted`, `--border`, `--accent` (`#c2410c` light / `#fb923c` dark), `--accent-text`. Dark mode follows `prefers-color-scheme`.
-- Single column, max 640 px, 16 px side gutter; sticky orange top bar with the three view buttons.
+- Single column, max 640 px, 16 px side gutter; sticky orange top bar (title, Install app, ⚙); fixed bottom tabs All · Wishlist · Near me · Add.
+- English UI; the sheet's own labels (Tipe, Genre, Jenis) are kept.
 - Icon: cream plate on orange (`icons/`), motif kept inside the maskable safe zone.
+- `[hidden]` is forced to `display: none` so classes with `display` cannot reveal hidden elements.
 
 ---
 

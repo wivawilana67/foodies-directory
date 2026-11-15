@@ -16,24 +16,31 @@
 <body>
   <header class="topbar">
     <h1>Foodies</h1>
-    <nav>
-      <button type="button" data-view="list">Places</button>
-      <button type="button" data-view="add">Add</button>
-      <button type="button" data-view="setup" aria-label="Settings">⚙</button>
-    </nav>
+    <div class="row">
+      <button id="install" type="button" class="topbar-button" hidden>Install app</button>
+      <button id="open-setup" type="button" class="topbar-button" aria-label="Settings">⚙</button>
+    </div>
   </header>
 
   <main>
     <section id="view-list" hidden>
       <div class="filters">
-        <input id="search" type="search" placeholder="Search name, city, craving" aria-label="Search">
-        <div class="row">
-          <button id="near-me" type="button" class="button" aria-pressed="false">Near me</button>
-          <select id="filter-category" aria-label="Craving"></select>
-          <select id="filter-area" aria-label="City"></select>
+        <input id="search" type="search" placeholder="Search name, city, dish, craving" aria-label="Search">
+        <div id="near-bar" class="row" hidden>
+          <button id="locate" type="button" class="button">Update my location</button>
+          <label class="check"><input id="near-wishlist" type="checkbox"> Wishlist only</label>
         </div>
+        <details>
+          <summary>Filters</summary>
+          <div class="grid2">
+            <select id="filter-tipe" aria-label="Tipe"></select>
+            <select id="filter-genre" aria-label="Genre"></select>
+            <select id="filter-jenis" aria-label="Jenis"></select>
+            <select id="filter-city" aria-label="City"></select>
+          </div>
+          <label class="check"><input id="show-closed" type="checkbox"> Show closed places</label>
+        </details>
         <div class="row">
-          <label id="filter-untried-wrap" hidden><input id="filter-untried" type="checkbox"> Not tried yet</label>
           <span id="count" class="muted"></span>
           <button id="refresh" type="button" class="button">Refresh</button>
         </div>
@@ -42,26 +49,60 @@
       <ul id="places" class="cards"></ul>
     </section>
 
+    <section id="view-place" hidden>
+      <button type="button" class="link" data-back>← Back</button>
+      <div id="place-detail"></div>
+      <p id="place-status" class="muted" role="status"></p>
+    </section>
+
+    <section id="view-form" hidden>
+      <button type="button" class="link" data-back>← Back</button>
+      <h2 id="form-title"></h2>
+      <p id="form-status" class="muted" role="status"></p>
+      <form id="place-form">
+        <div id="form-fields" class="fields"></div>
+        <button type="submit" class="button primary">Save</button>
+      </form>
+    </section>
+
     <section id="view-add" hidden>
       <form id="add-form">
         <label for="add-input">Paste a Google Maps link or type a name</label>
         <textarea id="add-input" rows="3" placeholder="https://maps.app.goo.gl/…  or  Bakmi GM Bandung"></textarea>
         <div class="row">
           <button id="paste" type="button" class="button">Paste</button>
-          <button type="submit" class="button primary">Look up</button>
+          <button type="submit" class="button primary">Search</button>
         </div>
-        <details>
-          <summary>Your labels (optional)</summary>
-          <label>Tipe <input id="label-tipe" maxlength="100"></label>
-          <label>Genre <input id="label-genre" maxlength="100"></label>
-          <label>Jenis <input id="label-jenis" maxlength="100"></label>
-        </details>
       </form>
       <p id="add-status" class="muted" role="status"></p>
       <ul id="results" class="cards"></ul>
+      <button id="add-manual" type="button" class="link">Not on Google Maps? Add it by name</button>
+    </section>
+
+    <section id="view-dish" hidden>
+      <button type="button" class="link" data-back>← Back</button>
+      <h2 id="dish-title"></h2>
+      <form id="dish-form">
+        <label>Dish <input id="dish-name" maxlength="100" required></label>
+        <label>Price <input id="dish-price" maxlength="50" placeholder="45k"></label>
+        <fieldset class="liked">
+          <legend>Liked it?</legend>
+          <label><input type="radio" name="dish-liked" value="Yes"> 👍 Yes</label>
+          <label><input type="radio" name="dish-liked" value="No"> 👎 No</label>
+          <label><input type="radio" name="dish-liked" value=""> Not sure</label>
+        </fieldset>
+        <label class="check"><input id="dish-best" type="checkbox"> ⭐ Best dish here</label>
+        <label>Note <textarea id="dish-note" rows="2" maxlength="300"></textarea></label>
+        <div class="row">
+          <button type="submit" class="button primary">Save</button>
+          <button id="dish-delete" type="button" class="button">Delete</button>
+        </div>
+      </form>
+      <p id="dish-status" class="muted" role="status"></p>
     </section>
 
     <section id="view-setup" hidden>
+      <button id="setup-back" type="button" class="link" data-back>← Back</button>
       <form id="setup-form">
         <p>Enter the backend URL and token once on this phone. They are stored only on this device.</p>
         <label>Backend URL <input id="setup-url" type="url" inputmode="url" autocomplete="off" placeholder="https://script.google.com/macros/s/…/exec"></label>
@@ -69,7 +110,15 @@
         <button type="submit" class="button primary">Save and check</button>
       </form>
       <p id="setup-status" class="muted" role="status"></p>
+      <p id="ios-hint" class="muted" hidden>Optional: to get a home-screen icon, tap Share, then “Add to Home Screen”.</p>
     </section>
   </main>
+
+  <nav class="tabbar" aria-label="Sections">
+    <button type="button" data-tab="all">📋<span>All</span></button>
+    <button type="button" data-tab="wishlist">🔖<span>Wishlist</span></button>
+    <button type="button" data-tab="near">📍<span>Near me</span></button>
+    <button type="button" data-tab="add">➕<span>Add</span></button>
+  </nav>
 </body>
 </html>

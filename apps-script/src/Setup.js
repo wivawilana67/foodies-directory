@@ -1,29 +1,55 @@
 // Editor-only setup helpers. Run from the Apps Script editor; results go to the execution log.
 
 function readHeaders_(sheet) {
-  return sheet.getRange(HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0].map((h) => String(h).trim());
+  if (!sheet.getLastColumn()) return [];
+  return sheet.getRange(HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0].map(normHeader_);
 }
 
-// Logs the real headers and which configured fields were found. Run before the first backfill.
-function checkColumns() {
-  const headers = readHeaders_(openSheet_());
-  Logger.log('Headers in "%s": %s', SHEET_NAME, JSON.stringify(headers));
-  const fields = Object.assign({}, USER_FIELDS, APP_FIELDS);
-  Object.keys(fields).forEach((f) => {
-    Logger.log('%s -> "%s": %s', f, fields[f], headers.indexOf(fields[f]) >= 0 ? 'found' : 'MISSING');
-  });
-}
-
-// Appends any missing APP_FIELDS headers after the last column. Never moves or renames existing columns.
-function addAppColumns() {
-  const sheet = openSheet_();
-  const headers = readHeaders_(sheet);
-  const missing = Object.keys(APP_FIELDS).map((f) => APP_FIELDS[f]).filter((h) => headers.indexOf(h) < 0);
+// Appends the headers missing from the header row after the last column. Never moves or renames columns.
+function appendHeaders_(sheet, headers) {
+  const have = readHeaders_(sheet);
+  const missing = headers.filter((h) => have.indexOf(h) < 0);
   if (missing.length) {
     const start = sheet.getLastColumn() + 1;
     const extra = start + missing.length - 1 - sheet.getMaxColumns();
     if (extra > 0) sheet.insertColumnsAfter(sheet.getMaxColumns(), extra);
-    sheet.getRange(HEADER_ROW, start, 1, missing.length).setValues([missing]);
+    sheet.getRange(HEADER_ROW, start, 1, missing.length).setValues([missing]).setFontWeight('bold');
   }
-  Logger.log('Added columns: %s', missing.length ? missing.join(', ') : 'none');
+  return missing;
+}
+
+const headerList_ = (fields) => Object.keys(fields).map((f) => fields[f]);
+
+// First run on a new spreadsheet: writes the "Food List" header row (old sheet names + app columns) and
+// creates the "Dishes" and "Master" tabs. Refuses if "Food List" has data rows; other tabs keep their headers.
+function setupSheet() {
+  const ss = spreadsheet_();
+  const tab = (name) => ss.getSheetByName(name) || ss.insertSheet(name);
+  const food = tab(SHEET_NAME);
+  if (food.getLastRow() > HEADER_ROW) throw new Error('"' + SHEET_NAME + '" has data rows; use addAppColumns() instead');
+  if (food.getLastColumn()) food.getRange(HEADER_ROW, 1, 1, food.getLastColumn()).clearContent();
+  [[food, Object.assign(placeFields_(), APP_FIELDS)], [tab(DISHES_SHEET), DISH_FIELDS], [tab(MASTER_SHEET), MASTER_FIELDS]]
+    .forEach(([sheet, fields]) => {
+      const added = appendHeaders_(sheet, headerList_(fields));
+      sheet.setFrozenRows(HEADER_ROW);
+      Logger.log('%s: added %s', sheet.getName(), added.join(', ') || 'none');
+    });
+}
+
+// Logs, per tab, which configured headers were found. Run after setupSheet or a migration.
+function checkColumns() {
+  [[SHEET_NAME, Object.assign(placeFields_(), APP_FIELDS)], [DISHES_SHEET, DISH_FIELDS], [MASTER_SHEET, MASTER_FIELDS]]
+    .forEach(([name, fields]) => {
+      const headers = readHeaders_(openTab_(name));
+      Logger.log('Headers in "%s": %s', name, JSON.stringify(headers));
+      Object.keys(fields).forEach((f) => {
+        Logger.log('%s -> "%s": %s', f, fields[f], headers.indexOf(fields[f]) >= 0 ? 'found' : 'MISSING');
+      });
+    });
+}
+
+// For a sheet that already has data (the old sheet at migration): appends missing app columns only.
+function addAppColumns() {
+  const added = appendHeaders_(openTab_(SHEET_NAME), headerList_(APP_FIELDS));
+  Logger.log('Added columns: %s', added.length ? added.join(', ') : 'none');
 }

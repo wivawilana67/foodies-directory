@@ -1,9 +1,9 @@
 # Foodies Directory — Rules for Engineers and AI Agents
 
-A phone-friendly directory of the restaurants in the Google Sheet "Foodies Checklist" (tab "Food List"), built for two people (Android first, iPhone too). Two parts that talk over one HTTPS endpoint:
+A phone-friendly directory of places to eat for two people, kept in a Google Sheet (tabs "Food List", "Dishes", "Master", with the old "Foodies Checklist" column names). Android installs it as an app; iPhone uses it in Safari. Two parts that talk over one HTTPS endpoint:
 
-- `apps-script/` — backend: a Google Apps Script web app bound to the sheet. Reads and writes the sheet, calls the Places API (New), holds the API key, counts spend, runs the backfill.
-- `web/` — front end: an installable web app (PWA) served by GitHub Pages. List, filters, "near me", add a place.
+- `apps-script/` — backend: a Google Apps Script web app. Reads and writes the sheet, calls the Places API (New), holds the API key, counts spend, runs the backfill.
+- `web/` — front end: an installable web app (PWA) served by GitHub Pages. All / Wishlist / Near me lists, place detail and edit, dishes, add a place.
 
 The Google Sheet is the database. **This repo is public** (free GitHub Pages): no secret, token, script ID, sheet ID or deployment URL is ever committed.
 
@@ -30,11 +30,11 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 │   ├── .clasp.example.json     # Template for the gitignored .clasp-prod.json
 │   └── src/                    # Pushed to Apps Script as-is (clasp rootDir)
 │       ├── appsscript.json     # Manifest: V8, Asia/Jakarta, web app runs as owner
-│       └── *.js                # Api, Config, Sheet, Places, MapsLink, Usage, Backfill, Setup
+│       └── *.js                # Api, Config, Sheet, Dishes, Places, MapsLink, Usage, Backfill, Setup
 └── web/                        # Front end (static PWA, no build step)
     ├── CLAUDE.md               # File map, conventions, platform rules  ← read before editing
-    ├── index.html, styles.css  # Single page with three views: Places, Add, Settings
-    ├── app.js, api.js, geo.js  # ES modules: UI, backend calls + storage, distance
+    ├── index.html, styles.css  # Single page: list, place, form, add, dish, settings views + bottom tabs
+    ├── *.js                    # ES modules: app, state, ui, list, place, dishes, add, api, geo
     ├── sw.js                   # Service worker (network-first, offline fallback)
     ├── manifest.webmanifest    # Install metadata + Android share target
     └── icons/                  # PNG icons (192, 512, 180 apple-touch)
@@ -52,13 +52,17 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 
 | I want to change… | Go to |
 |---|---|
-| Which sheet columns the app reads or writes | `USER_FIELDS` / `APP_FIELDS` in `apps-script/src/Config.js` |
+| Which sheet columns the app reads or writes | `placeFields_()` / `APP_FIELDS` / `DISH_FIELDS` / `MASTER_FIELDS` in `apps-script/src/Config.js` |
+| Which fields the phone may edit, and their checks | `EDITABLE_FIELDS` (`Config.js`), `cleanValue_` (`Sheet.js`), `formFields` (`web/place.js`) |
+| Dishes and Best Dish | `apps-script/src/Dishes.js` + `web/dishes.js` |
 | Which Google fields are fetched (affects billing) | `PLACE_FIELDS` in `apps-script/src/Places.js` |
 | How a Maps link is understood | `apps-script/src/MapsLink.js` |
 | Daily / monthly lookup limits | Script Properties `DAILY_LIMIT` / `MONTHLY_LIMIT` (defaults in `Config.js`) |
 | A backend action the phone can call | `ACTIONS` in `apps-script/src/Api.js` + the matching `call('…')` in `web/app.js` |
 | Backfill behaviour | `apps-script/src/Backfill.js` |
-| List, filters, near me, cards | `web/app.js` (`render`, `placeCard`) + `web/index.html` |
+| Tabs, filters, sort, near me, cards | `web/list.js` + `web/index.html`; tab switching in `web/app.js` (`selectTab`) |
+| Place detail and add / edit form | `web/place.js` |
+| Install button, iPhone hint, Back button | `web/app.js` (`initInstall`, `popstate`) |
 | Look and feel | `web/styles.css` (tokens on `:root`) |
 | Install name, icon, share target | `web/manifest.webmanifest`, `web/icons/` |
 | Backend deploy targets or npm scripts | `apps-script/.clasp-*.json` (local only) / root `package.json` |
@@ -107,7 +111,8 @@ The code wins when docs disagree — then fix the docs in the same change. There
 
 ### While changing code
 - A change to the API contract (action name, request or response fields) changes both `apps-script/src/Api.js` and `web/` in the same commit.
-- Keep the user's sheet data safe: the app only appends rows and fills empty cells in its own columns.
+- Keep the user's sheet data safe: the app appends rows, fills empty cells in its own columns, and changes user cells only through `update` (changed fields only, refused if the cell changed since the phone read it). Never rewrite whole existing rows.
+- Every front-end feature must work in iPhone Safari without install (`web/CLAUDE.md` § 5).
 
 ### After changing code — update the docs (part of "done")
 Use the `development-documentation` skill.
@@ -128,8 +133,8 @@ Use the `development-documentation` skill.
 
 ## 5. Environments & Data Safety
 
-- **One backend target: prod.** There is no dev environment. The script is bound to the real "Foodies Checklist", so every push, deploy and editor run touches live data. Do any of them only when the owner asks in that request.
-- **Never committed (public repo):** `.clasp*.json` except the example, script IDs, the spreadsheet ID, the web app URL, `API_TOKEN`, `PLACES_API_KEY`.
+- **One backend target: prod.** There is no dev environment. The script works on the live spreadsheet in `SPREADSHEET_ID` (a new sheet; the old "Foodies Checklist" is migrated later), so every push, deploy and editor run touches live data. Do any of them only when the owner asks in that request.
+- **Never committed (public repo):** `.clasp*.json` except the example, script IDs, the spreadsheet ID, the web app URL, `API_TOKEN`, `PLACES_API_KEY`, the names in `PEOPLE`.
 - **Backend: deploy only with the root npm scripts.** `npm run push-prod` pushes code; the web app URL only serves the new code after the owner updates the existing deployment to a new version (README → Deploy).
 - **Front end: `master` is prod.** Every push to `master` that touches `web/` publishes it through `.github/workflows/pages.yml`. Nothing else deploys the front end.
 - **Backfill** runs from the Apps Script editor, only with the owner's go-ahead: take a backup first (File → Make a copy, or a named version in Version history), run one batch of 15 rows, check it, then the rest.

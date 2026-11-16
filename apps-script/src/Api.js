@@ -5,6 +5,9 @@ const ACTIONS = {
   list: () => listPlaces_(),
   lookup: (body) => lookup_(body),
   add: (body) => addPlace_(body),
+  update: (body) => updatePlace_(body),
+  saveDish: (body) => saveDish_(body),
+  deleteDish: (body) => deleteDish_(body),
 };
 
 function doGet() {

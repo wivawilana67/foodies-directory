@@ -9,10 +9,18 @@ const SHELL = [
   './app.js',
   './api.js',
   './geo.js',
+  './ui.js',
+  './state.js',
+  './list.js',
+  './place.js',
+  './dishes.js',
+  './add.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
+  './fonts/nunito-latin.woff2',
+  './fonts/fredoka-latin.woff2',
 ];
 
 self.addEventListener('install', (event) => {

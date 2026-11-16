@@ -4,8 +4,8 @@
 
 function backfillBatch() {
   const started = Date.now();
-  const t = readTable_();
-  assertAppColumns_(t.col);
+  const t = readPlaces_();
+  assertColumns_(t.col, APP_FIELDS, SHEET_NAME);
   const todo = [];
   t.rows.forEach((r, i) => {
     if (String(r[t.col.name]).trim() && r[t.col.placeId] === '' && r[t.col.lookupStatus] === '') todo.push(i);
@@ -34,7 +34,7 @@ function backfillBatch() {
 
 // A real Maps link in the row wins; otherwise search "<name> <city>".
 function findPlaceForRow_(row, col) {
-  const link = col.link !== undefined ? extractUrl_(row[col.link]) : '';
+  const link = col.mapsLink !== undefined ? extractUrl_(row[col.mapsLink]) : '';
   if (link && isMapsUrl_(link)) {
     const places = placeFromLink_(link, 1);
     if (places) return places[0] || null;
@@ -50,7 +50,7 @@ function writeFills_(fills) {
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {
-    const t = readTable_();
+    const t = readPlaces_();
     fills.forEach((f) => {
       const row = t.rows[f.index];
       if (!row || row[t.col.name] !== f.name) {

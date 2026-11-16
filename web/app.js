@@ -1,178 +1,66 @@
-// UI: list + filters + near me, add place (paste link / type name / Android share), first-run setup.
-// All place text is inserted with textContent, never innerHTML.
+// Entry point: loads the list, wires the bottom tabs, Near me, settings and install, and the Back button.
 
 import { call, getSettings, saveSettings, readCache, writeCache } from './api.js';
-import { distanceKm, getPosition } from './geo.js';
+import { getPosition } from './geo.js';
+import { state, onChange, changed } from './state.js';
+import { $, show } from './ui.js';
+import { renderFilters, renderList, copyList } from './list.js';
+import { renderPlace } from './place.js';
+import { initDishes } from './dishes.js';
+import { initAdd } from './add.js';
 
-const $ = (id) => document.getElementById(id);
-const LABELS = ['tipe', 'genre', 'jenis'];
-const state = { places: [], fields: [], here: null };
-
-function el(tag, props = {}, ...children) {
-  const node = Object.assign(document.createElement(tag), props);
-  node.append(...children.filter((c) => c !== null && c !== undefined && c !== ''));
-  return node;
-}
-
-function show(view) {
-  for (const name of ['list', 'add', 'setup']) $(`view-${name}`).hidden = name !== view;
-  document.querySelectorAll('[data-view]').forEach((b) => {
-    b.setAttribute('aria-current', b.dataset.view === view ? 'page' : 'false');
-  });
-}
-
-const setStatus = (text) => { $('status').textContent = text; };
-const setAddStatus = (text) => { $('add-status').textContent = text; };
-const setSetupStatus = (text) => { $('setup-status').textContent = text; };
-
-const text = (v) => String(v ?? '').trim();
-const categoriesOf = (p) => [p.googleCategory, ...LABELS.map((f) => p[f])].map(text).filter(Boolean);
-const areaOf = (p) => text(p.city) || text(p.area);
-
-function coordsOf(p) {
-  const lat = Number(p.lat);
-  const lng = Number(p.lng);
-  return text(p.lat) && Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
-}
-
-function formatKm(d) {
-  return d < 1 ? `${Math.round(d * 1000)} m` : `${d.toFixed(d < 10 ? 1 : 0)} km`;
-}
-
-function mapsHref(p) {
-  for (const url of [p.mapsUrl, p.link]) if (/^https:\/\//.test(text(url))) return text(url);
-  const params = new URLSearchParams({ api: '1', query: [p.name, areaOf(p)].filter(Boolean).join(' ') });
-  if (p.placeId) params.set('query_place_id', p.placeId);
-  return `https://www.google.com/maps/search/?${params}`;
-}
-
-function fillSelect(select, values, allLabel) {
-  const current = select.value;
-  select.replaceChildren(el('option', { value: '', textContent: allLabel }),
-    ...values.map((v) => el('option', { value: v, textContent: v })));
-  select.value = values.includes(current) ? current : '';
-}
-
-function renderFilters() {
-  const unique = (list) => [...new Set(list)].sort((a, b) => a.localeCompare(b));
-  fillSelect($('filter-category'), unique(state.places.flatMap(categoriesOf)), 'Any craving');
-  fillSelect($('filter-area'), unique(state.places.map(areaOf).filter(Boolean)), 'Any city');
-  $('filter-untried-wrap').hidden = !state.fields.includes('tried');
-}
-
-function placeCard(p, distance) {
-  const meta = [categoriesOf(p).join(' · '), areaOf(p), Number.isFinite(distance) ? formatKm(distance) : '']
-    .filter(Boolean).join(' — ');
-  return el('li', { className: 'card' },
-    el('div', { className: 'card-body' },
-      el('h3', { textContent: text(p.name) }),
-      el('p', { className: 'meta', textContent: meta }),
-      p.tried ? el('span', { className: 'badge', textContent: 'Tried' }) : null),
-    el('a', { className: 'button', href: mapsHref(p), target: '_blank', rel: 'noopener', textContent: 'Maps' }));
-}
-
-function render() {
-  const q = $('search').value.trim().toLowerCase();
-  const category = $('filter-category').value;
-  const area = $('filter-area').value;
-  const untried = $('filter-untried').checked && state.fields.includes('tried');
-  const list = state.places.filter((p) =>
-    (!q || [p.name, p.address, areaOf(p), ...categoriesOf(p)].join(' ').toLowerCase().includes(q))
-    && (!category || categoriesOf(p).includes(category))
-    && (!area || areaOf(p) === area)
-    && (!untried || !p.tried));
-  const distance = new Map();
-  if (state.here) {
-    list.forEach((p) => distance.set(p, coordsOf(p) ? distanceKm(state.here, coordsOf(p)) : Infinity));
-    list.sort((a, b) => distance.get(a) - distance.get(b));
-  }
-  $('places').replaceChildren(...list.map((p) => placeCard(p, distance.get(p))));
-  $('count').textContent = `${list.length} of ${state.places.length} places`;
-}
+const setStatus = (msg) => { $('status').textContent = msg; };
+const setSetupStatus = (msg) => { $('setup-status').textContent = msg; };
 
 function apply(data) {
-  state.places = data.places;
-  state.fields = data.fields;
-  writeCache({ places: data.places, fields: data.fields });
-  renderFilters();
-  render();
+  state.places = data.places || [];
+  state.dishes = data.dishes || [];
+  state.options = { rating: [], tipe: [], genre: [], jenis: [], ...data.options };
+  state.people = data.people?.length === 2 ? data.people : ['Person 1', 'Person 2'];
 }
+
+onChange(() => {
+  const { places, dishes, options, people } = state;
+  writeCache({ places, dishes, options, people });
+  renderFilters();
+  renderList();
+});
 
 async function refresh() {
   setStatus('Loading…');
   try {
     apply(await call('list'));
+    changed();
+    if (!$('view-place').hidden) renderPlace();
     setStatus('');
   } catch (err) {
     setStatus(`Showing the saved list. ${err.message}`);
   }
 }
 
-async function toggleNearMe() {
-  const button = $('near-me');
-  if (state.here) {
-    state.here = null;
-    button.setAttribute('aria-pressed', 'false');
-    render();
-    return;
-  }
+async function locate() {
   setStatus('Finding your location…');
   try {
     state.here = await getPosition();
-    button.setAttribute('aria-pressed', 'true');
     setStatus('');
   } catch (err) {
     setStatus(`Location unavailable: ${err.message}`);
   }
-  render();
+  renderList();
 }
 
-function resultCard(place) {
-  const button = el('button', { type: 'button', className: 'button primary', textContent: 'Save' });
-  button.addEventListener('click', () => save(place, button));
-  return el('li', { className: 'card' },
-    el('div', { className: 'card-body' },
-      el('h3', { textContent: place.name }),
-      el('p', { className: 'meta', textContent: [place.googleCategory, place.address].filter(Boolean).join(' — ') })),
-    button);
-}
-
-async function lookup(event) {
-  event.preventDefault();
-  const input = $('add-input').value.trim();
-  if (!input) return;
-  setAddStatus('Looking up…');
-  $('results').replaceChildren();
-  try {
-    const { places } = await call('lookup', { input });
-    $('results').replaceChildren(...places.map(resultCard));
-    setAddStatus(places.length ? 'Pick the right place:' : 'No match. Try adding the city to the name.');
-  } catch (err) {
-    setAddStatus(err.message);
+function selectTab(tab) {
+  document.querySelectorAll('[data-tab]').forEach((b) => {
+    b.setAttribute('aria-current', b.dataset.tab === tab ? 'page' : 'false');
+  });
+  if (tab === 'add') {
+    show('add');
+    return;
   }
-}
-
-async function save(place, button) {
-  button.disabled = true;
-  const labels = Object.fromEntries(LABELS.map((f) => [f, $(`label-${f}`).value.trim()]));
-  try {
-    const { duplicate } = await call('add', { placeId: place.placeId, labels });
-    $('add-form').reset();
-    $('results').replaceChildren();
-    setAddStatus(duplicate ? `${place.name} is already in the list.` : `Saved ${place.name}.`);
-    await refresh();
-  } catch (err) {
-    button.disabled = false;
-    setAddStatus(err.message);
-  }
-}
-
-async function paste() {
-  try {
-    $('add-input').value = await navigator.clipboard.readText();
-  } catch {
-    setAddStatus('Paste is blocked here. Long-press the box and choose Paste.');
-  }
+  state.tab = tab;
+  show('list');
+  renderList();
+  if (tab === 'near' && !state.here) locate();
 }
 
 async function saveSetup(event) {
@@ -186,45 +74,69 @@ async function saveSetup(event) {
   setSetupStatus('Checking…');
   try {
     apply(await call('list'));
+    changed();
     setSetupStatus('');
-    show($('add-input').value ? 'add' : 'list');
+    $('setup-back').hidden = false;
+    selectTab($('add-input').value ? 'add' : 'all');
   } catch (err) {
     setSetupStatus(`Saved, but the check failed: ${err.message}`);
   }
 }
 
-// Android share target opens ./?title=…&text=…&url=… (see manifest.webmanifest).
-function readShare() {
-  const params = new URLSearchParams(location.search);
-  const shared = ['url', 'text', 'title'].map((k) => params.get(k)).filter(Boolean).join('\n');
-  if (shared) history.replaceState(null, '', location.pathname);
-  return shared;
+// Android (Chrome): an "Install app" button when the browser offers it. iPhone: a hint, since Safari has no prompt.
+function initInstall() {
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferred = event;
+    $('install').hidden = false;
+  });
+  window.addEventListener('appinstalled', () => { $('install').hidden = true; });
+  $('install').addEventListener('click', async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    await deferred.userChoice;
+    deferred = null;
+    $('install').hidden = true;
+  });
+  const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const installed = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  $('ios-hint').hidden = !ios || installed;
 }
 
 function init() {
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
-  document.querySelectorAll('[data-view]').forEach((b) => b.addEventListener('click', () => show(b.dataset.view)));
-  for (const id of ['search', 'filter-category', 'filter-area', 'filter-untried']) $(id).addEventListener('input', render);
-  $('near-me').addEventListener('click', toggleNearMe);
+  document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => selectTab(b.dataset.tab)));
+  document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => history.back()));
+  window.addEventListener('popstate', (event) => {
+    const view = event.state?.view || 'list';
+    if (view === 'place') renderPlace();
+    show(view);
+  });
+  $('open-setup').addEventListener('click', () => show('setup', true));
+  $('search').addEventListener('input', renderList);
+  for (const id of ['filter-tipe', 'filter-genre', 'filter-jenis', 'filter-city', 'show-closed', 'near-wishlist']) {
+    $(id).addEventListener('change', renderList);
+  }
+  $('locate').addEventListener('click', locate);
   $('refresh').addEventListener('click', refresh);
-  $('add-form').addEventListener('submit', lookup);
-  $('paste').addEventListener('click', paste);
+  $('copy-list').addEventListener('click', copyList);
   $('setup-form').addEventListener('submit', saveSetup);
+  initAdd();
+  initDishes();
+  initInstall();
 
-  $('add-input').value = readShare();
   const settings = getSettings();
   $('setup-url').value = settings.url;
   $('setup-token').value = settings.token;
   if (!settings.url || !settings.token) {
+    $('setup-back').hidden = true;
     show('setup');
     return;
   }
-  const cached = readCache();
-  state.places = cached.places;
-  state.fields = cached.fields;
+  apply(readCache());
   renderFilters();
-  render();
-  show($('add-input').value ? 'add' : 'list');
+  selectTab($('add-input').value ? 'add' : 'all');
   refresh();
 }
 

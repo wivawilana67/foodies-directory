@@ -47,6 +47,8 @@ function placesFetch_(path, method, fieldMask, payload) {
   return JSON.parse(resp.getContentText());
 }
 
+// Unverified: which address component holds the city and the district for Indonesian addresses.
+// The phone shows these as editable defaults, so a wrong guess is fixed before saving.
 function toPlace_(p) {
   const parts = p.addressComponents || [];
   const part = (type) => (parts.find((c) => (c.types || []).indexOf(type) >= 0) || {}).longText || '';
@@ -56,7 +58,9 @@ function toPlace_(p) {
     address: p.formattedAddress || '',
     lat: p.location ? p.location.latitude : '',
     lng: p.location ? p.location.longitude : '',
-    area: part('locality') || part('administrative_area_level_2'),
+    country: part('country'),
+    city: part('locality') || part('administrative_area_level_2') || part('administrative_area_level_1'),
+    district: part('sublocality_level_1') || part('sublocality'),
     googleCategory: (p.primaryTypeDisplayName || {}).text || p.primaryType || '',
     mapsUrl: p.googleMapsUri || '',
   };

@@ -55,6 +55,8 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 | Which sheet columns the app reads or writes | `placeFields_()` / `APP_FIELDS` / `DISH_FIELDS` / `MASTER_FIELDS` in `apps-script/src/Config.js` |
 | Which fields the phone may edit, and their checks | `EDITABLE_FIELDS` (`Config.js`), `cleanValue_` (`Sheet.js`), `formFields` (`web/place.js`) |
 | Dishes and Best Dish | `apps-script/src/Dishes.js` + `web/dishes.js` |
+| Labels (rules / chips / form) | `cleanLabels_` (`Sheet.js`) / `renderLabelChips` (`web/list.js`) / `labelsControl` (`web/place.js`) |
+| Copy and share text | `placeText`, `copyText`, `sharePlace` in `web/ui.js` |
 | Which Google fields are fetched (affects billing) | `PLACE_FIELDS` in `apps-script/src/Places.js` |
 | How a Maps link is understood | `apps-script/src/MapsLink.js` |
 | Daily / monthly lookup limits | Script Properties `DAILY_LIMIT` / `MONTHLY_LIMIT` (defaults in `Config.js`) |

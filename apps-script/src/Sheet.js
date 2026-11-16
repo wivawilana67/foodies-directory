@@ -40,7 +40,7 @@ function readPlaces_() {
 
 function assertColumns_(col, fields, tabName) {
   const missing = Object.keys(fields).filter((f) => col[f] === undefined).map((f) => fields[f]);
-  if (missing.length) throw new Error('Missing columns in ' + tabName + ' (' + missing.join(', ') + '); run setupSheet() or addAppColumns()');
+  if (missing.length) throw new Error('Missing columns in ' + tabName + ' (' + missing.join(', ') + '); run setupSheet() or addMissingColumns()');
 }
 
 function rowNumber_(index) {
@@ -145,6 +145,7 @@ function cleanFields_(input, options) {
 
 function cleanValue_(f, v, options) {
   if (CHECKBOX_FIELDS.indexOf(f) >= 0) return v === true;
+  if (f === 'labels') return cleanLabels_(v);
   let s = String(v === null || v === undefined ? '' : v).trim();
   if (s.length > (/^review/.test(f) ? 1000 : 200)) throw new Error(f + ' is too long');
   if (/^rating/.test(f) && s && options.rating.indexOf(s) < 0) throw new Error('Unknown rating: ' + s);
@@ -156,6 +157,16 @@ function cleanValue_(f, v, options) {
     throw new Error('Google link must be a Google Maps link');
   }
   return s;
+}
+
+// Labels arrive as a list or comma-separated text; stored as "A, B" without blanks or case-insensitive repeats.
+function cleanLabels_(v) {
+  const list = (Array.isArray(v) ? v.join(',') : String(v === null || v === undefined ? '' : v))
+    .split(',').map((s) => s.trim()).filter(Boolean);
+  const unique = list.filter((s, i) => list.findIndex((x) => x.toLowerCase() === s.toLowerCase()) === i);
+  if (unique.some((s) => s.length > 40)) throw new Error('A label is too long (max 40 characters)');
+  if (unique.length > 20) throw new Error('Too many labels (max 20)');
+  return unique.join(', ');
 }
 
 function readOptions_() {

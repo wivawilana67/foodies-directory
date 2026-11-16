@@ -11,6 +11,8 @@ export function el(tag, props = {}, ...children) {
 export const text = (v) => String(v ?? '').trim();
 export const httpsUrl = (v) => (/^https:\/\//.test(text(v)) ? text(v) : '');
 export const areaOf = (p) => [p.district, p.city].map(text).filter(Boolean).join(', ');
+export const locationOf = (p) => [p.landmark, p.district, p.city, p.country].map(text).filter(Boolean).join(', ');
+export const labelsOf = (p) => text(p.labels).split(',').map((s) => s.trim()).filter(Boolean);
 
 export function coordsOf(p) {
   const lat = Number(p.lat);
@@ -28,6 +30,43 @@ export function mapsHref(p) {
   const params = new URLSearchParams({ api: '1', query: [p.name, p.city, p.country].map(text).filter(Boolean).join(' ') });
   if (p.placeId) params.set('query_place_id', p.placeId);
   return `https://www.google.com/maps/search/?${params}`;
+}
+
+// Name, location and Google Maps link on three lines, ready to paste into a chat.
+export const placeText = (p) => [text(p.name), locationOf(p), mapsHref(p)].filter(Boolean).join('\n');
+
+let toastTimer;
+export function toast(msg) {
+  const box = $('toast');
+  box.textContent = msg;
+  box.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { box.hidden = true; }, 2000);
+}
+
+// Clipboard API first; older iPhone Safari or a blocked clipboard falls back to a hidden textarea.
+export async function copyText(value, done = 'Copied') {
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch {
+    const area = el('textarea', { value, readOnly: true, className: 'offscreen' });
+    document.body.append(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    if (!ok) return toast('Copy is blocked on this browser');
+  }
+  toast(done);
+}
+
+export const canShare = () => typeof navigator.share === 'function';
+
+export async function sharePlace(p) {
+  try {
+    await navigator.share({ title: text(p.name), text: placeText(p) });
+  } catch (err) {
+    if (err.name !== 'AbortError') toast('Could not open the share menu');
+  }
 }
 
 const VIEWS = ['list', 'place', 'form', 'add', 'dish', 'setup'];

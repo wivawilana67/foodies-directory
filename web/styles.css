@@ -218,3 +218,48 @@ details label { margin-top: 8px; }
 
 .dish-name { font-weight: 600; }
 .dish-note { overflow-wrap: anywhere; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips.scroll { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+
+.chip {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.chip.on, .chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
+.badge.label { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+
+.icon-button {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.1rem;
+}
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  z-index: 3;
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.875rem;
+  transform: translateX(-50%);
+}
+
+.offscreen { position: fixed; top: -1000px; opacity: 0; }

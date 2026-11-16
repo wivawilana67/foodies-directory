@@ -26,7 +26,7 @@ function setupSheet() {
   const ss = spreadsheet_();
   const tab = (name) => ss.getSheetByName(name) || ss.insertSheet(name);
   const food = tab(SHEET_NAME);
-  if (food.getLastRow() > HEADER_ROW) throw new Error('"' + SHEET_NAME + '" has data rows; use addAppColumns() instead');
+  if (food.getLastRow() > HEADER_ROW) throw new Error('"' + SHEET_NAME + '" has data rows; use addMissingColumns() instead');
   if (food.getLastColumn()) food.getRange(HEADER_ROW, 1, 1, food.getLastColumn()).clearContent();
   [[food, Object.assign(placeFields_(), APP_FIELDS)], [tab(DISHES_SHEET), DISH_FIELDS], [tab(MASTER_SHEET), MASTER_FIELDS]]
     .forEach(([sheet, fields]) => {
@@ -48,8 +48,9 @@ function checkColumns() {
     });
 }
 
-// For a sheet that already has data (the old sheet at migration): appends missing app columns only.
-function addAppColumns() {
-  const added = appendHeaders_(openTab_(SHEET_NAME), headerList_(APP_FIELDS));
+// For a "Food List" that already has data (a new column such as Labels, or the old sheet at migration):
+// appends every configured header that is missing, after the last column. Existing columns are untouched.
+function addMissingColumns() {
+  const added = appendHeaders_(openTab_(SHEET_NAME), headerList_(Object.assign(placeFields_(), APP_FIELDS)));
   Logger.log('Added columns: %s', added.length ? added.join(', ') : 'none');
 }

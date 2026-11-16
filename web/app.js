@@ -4,7 +4,7 @@ import { call, getSettings, saveSettings, readCache, writeCache } from './api.js
 import { getPosition } from './geo.js';
 import { state, onChange, changed } from './state.js';
 import { $, show } from './ui.js';
-import { renderFilters, renderList } from './list.js';
+import { renderFilters, renderList, copyList } from './list.js';
 import { renderPlace } from './place.js';
 import { initDishes } from './dishes.js';
 import { initAdd } from './add.js';
@@ -121,6 +121,7 @@ function init() {
   }
   $('locate').addEventListener('click', locate);
   $('refresh').addEventListener('click', refresh);
+  $('copy-list').addEventListener('click', copyList);
   $('setup-form').addEventListener('submit', saveSetup);
   initAdd();
   initDishes();

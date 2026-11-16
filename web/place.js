@@ -3,13 +3,13 @@
 
 import { call } from './api.js';
 import { state, changed, placeById, upsert } from './state.js';
-import { $, el, text, httpsUrl, mapsHref, show } from './ui.js';
+import { $, el, text, httpsUrl, mapsHref, show, labelsOf, locationOf, placeText, copyText, canShare, sharePlace } from './ui.js';
 import { dishList } from './dishes.js';
 
 const NEW = '__new__';
 const CHECKS = ['tried', 'closed'];
 
-// [field, label, kind]; kinds: text, url, choice (Master list + add new), rating, note, check.
+// [field, label, kind]; kinds: text, url, choice (Master list + add new), labels, rating, note, check.
 function formFields() {
   const [p1, p2] = state.people;
   return [
@@ -21,6 +21,7 @@ function formFields() {
     ['tipe', 'Tipe', 'choice'],
     ['genre', 'Genre', 'choice'],
     ['jenis', 'Jenis', 'choice'],
+    ['labels', 'Labels', 'labels'],
     ['tried', 'We have tried it', 'check'],
     ['rating1', `${p1}'s score`, 'rating'],
     ['review1', `${p1}'s review`, 'note'],
@@ -33,7 +34,11 @@ function formFields() {
   ];
 }
 
-const sameValue = (f, a, b) => (CHECKS.includes(f) ? Boolean(a) === Boolean(b) : text(a) === text(b));
+function sameValue(f, a, b) {
+  if (CHECKS.includes(f)) return Boolean(a) === Boolean(b);
+  if (f === 'labels') return labelsOf({ labels: a }).join(',') === labelsOf({ labels: b }).join(',');
+  return text(a) === text(b);
+}
 
 export function openPlace(id) {
   state.current = id;
@@ -74,6 +79,10 @@ export function renderPlace() {
   const edit = el('button', { type: 'button', className: 'button', textContent: 'Edit' });
   edit.addEventListener('click', () => openForm({ place: p }));
   const instagram = httpsUrl(p.instagram);
+  const copy = el('button', { type: 'button', className: 'button', textContent: 'Copy' });
+  copy.addEventListener('click', () => copyText(placeText(p)));
+  const share = canShare() ? el('button', { type: 'button', className: 'button', textContent: 'Share' }) : null;
+  share?.addEventListener('click', () => sharePlace(p));
 
   const people = state.people.map((name, i) => el('div', { className: 'person' },
     el('p', { className: 'score' }, el('strong', { textContent: name }), ` ${text(p[`rating${i + 1}`]) || '—'}`),
@@ -81,15 +90,16 @@ export function renderPlace() {
 
   $('place-detail').replaceChildren(
     el('h2', { textContent: text(p.name) }),
-    el('p', { className: 'meta', textContent: [p.landmark, p.district, p.city, p.country].map(text).filter(Boolean).join(', ') }),
+    el('p', { className: 'meta', textContent: locationOf(p) }),
     el('p', { className: 'meta', textContent: ['tipe', 'genre', 'jenis'].map((f) => text(p[f])).filter(Boolean).join(' · ') }),
     el('p', { className: 'badges' },
       el('span', { className: `badge ${p.tried ? '' : 'wish'}`, textContent: p.tried ? 'Tried' : 'Wishlist' }),
-      p.closed ? el('span', { className: 'badge', textContent: 'Closed' }) : null),
+      p.closed ? el('span', { className: 'badge', textContent: 'Closed' }) : null,
+      ...labelsOf(p).map((l) => el('span', { className: 'badge label', textContent: l }))),
     el('div', { className: 'row' },
       el('a', { className: 'button primary', href: mapsHref(p), target: '_blank', rel: 'noopener', textContent: 'Maps' }),
       instagram ? el('a', { className: 'button', href: instagram, target: '_blank', rel: 'noopener', textContent: 'Instagram' }) : null,
-      tried, edit),
+      copy, share, tried, edit),
     section('Scores', ...people),
     section('Price per person', el('p', { textContent: text(p.price) || '—' })),
     section('Best dish', el('p', { textContent: text(p.bestDish) || 'Star a dish below to set it.' })),
@@ -114,8 +124,46 @@ function choiceControl(values, current) {
   return { nodes: [select, input], value: () => (select.value === NEW ? input.value.trim() : select.value) };
 }
 
+// The place's labels as removable chips, a box to type a new one, and tap-to-add chips for labels used elsewhere.
+function labelsControl(current) {
+  const chosen = labelsOf({ labels: current });
+  const has = (l) => chosen.some((c) => c.toLowerCase() === l.toLowerCase());
+  const picked = el('div', { className: 'chips' });
+  const suggestions = el('div', { className: 'chips' });
+  const input = el('input', { maxLength: 40, placeholder: 'New label, e.g. Date night' });
+  const addButton = el('button', { type: 'button', className: 'button', textContent: 'Add' });
+
+  const chip = (label, cls, onTap) => {
+    const b = el('button', { type: 'button', className: `chip ${cls}`, textContent: label });
+    b.addEventListener('click', onTap);
+    return b;
+  };
+  function draw() {
+    picked.replaceChildren(...chosen.map((l) => chip(`${l} ×`, 'on', () => { chosen.splice(chosen.indexOf(l), 1); draw(); })));
+    const used = [...new Set(state.places.flatMap(labelsOf))].filter((l) => !has(l)).sort((a, b) => a.localeCompare(b));
+    suggestions.replaceChildren(...used.map((l) => chip(`+ ${l}`, '', () => { chosen.push(l); draw(); })));
+  }
+  function add() {
+    const v = input.value.replace(/,/g, ' ').trim();
+    if (v && !has(v)) chosen.push(v);
+    input.value = '';
+    draw();
+  }
+  input.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ',') {
+      event.preventDefault();
+      add();
+    }
+  });
+  addButton.addEventListener('click', add);
+  draw();
+  // A label still in the box when saving counts too.
+  return { nodes: [picked, el('div', { className: 'row' }, input, addButton), suggestions], value: () => { add(); return chosen.join(', '); } };
+}
+
 function control(field, kind, current) {
   if (kind === 'choice') return choiceControl(state.options[field] || [], current);
+  if (kind === 'labels') return labelsControl(current);
   if (kind === 'rating') {
     const values = [...state.options.rating];
     if (text(current) && !values.includes(text(current))) values.push(text(current));
@@ -145,7 +193,8 @@ export function openForm({ place, google, manual }) {
   $('form-title').textContent = place ? `Edit ${text(place.name)}` : 'New place';
   $('form-fields').replaceChildren(...formFields().map(([field, label, kind]) => {
     controls[field] = control(field, kind, start[field]);
-    return el('label', { className: kind === 'check' ? 'check' : '' },
+    // Labels holds several buttons, so it is a div: a <label> would forward taps on its text to the first chip.
+    return el(kind === 'labels' ? 'div' : 'label', { className: kind === 'check' ? 'check' : 'field' },
       kind === 'check' ? null : label, ...controls[field].nodes, kind === 'check' ? label : null);
   }));
   $('form-status').textContent = google ? `From Google: ${text(google.address)}` : '';

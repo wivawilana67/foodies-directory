@@ -23,6 +23,7 @@ function placeFields_() {
     tipe: 'Tipe Foodies',
     genre: 'Genre Foodies',
     jenis: 'Jenis Foodies',
+    labels: 'Labels',
     bestDish: 'Best Dish',
     review1: 'Review (' + p[0] + ')',
     review2: 'Review (' + p[1] + ')',
@@ -67,7 +68,7 @@ const MASTER_FIELDS = {
 
 // Place fields the phone may set. UniqueName, Hyperlink and Best Dish are derived by the server.
 const EDITABLE_FIELDS = ['name', 'country', 'city', 'district', 'landmark', 'rating1', 'rating2', 'price',
-  'tipe', 'genre', 'jenis', 'review1', 'review2', 'instagram', 'mapsLink', 'closed', 'tried'];
+  'tipe', 'genre', 'jenis', 'labels', 'review1', 'review2', 'instagram', 'mapsLink', 'closed', 'tried'];
 const CHECKBOX_FIELDS = ['closed', 'tried'];
 const OPTION_FIELDS = ['tipe', 'genre', 'jenis'];
 

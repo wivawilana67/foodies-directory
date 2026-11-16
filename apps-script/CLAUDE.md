@@ -24,7 +24,7 @@ apps-script/
     ├── MapsLink.js         # Find / validate / resolve / parse Google Maps links
     ├── Usage.js            # Spend counter (reserveQuota_), showUsage
     ├── Backfill.js         # Editor-only: backfillBatch fills empty app columns for old rows
-    └── Setup.js            # Editor-only: setupSheet, checkColumns, addAppColumns
+    └── Setup.js            # Editor-only: setupSheet, checkColumns, addMissingColumns
 ```
 
 ---
@@ -50,7 +50,7 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 |---|---|---|
 | `setupSheet` | `Setup.js` | New spreadsheet only: rewrites the "Food List" header row (refuses if it has data rows), creates "Dishes" and "Master" with headers, freezes row 1 |
 | `checkColumns` | `Setup.js` | Logs each tab's real headers and which configured fields were found |
-| `addAppColumns` | `Setup.js` | Sheet with data (migration): appends missing `APP_FIELDS` headers after the last column |
+| `addMissingColumns` | `Setup.js` | "Food List" with data: appends every configured header that is missing (a new column such as `Labels`, or app columns at migration) after the last column |
 | `backfillBatch` | `Backfill.js` | Looks up the next `BACKFILL_BATCH` rows and fills their empty app cells |
 | `showUsage` | `Usage.js` | Logs today's and this month's lookup counts |
 
@@ -79,7 +79,7 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 | A fresh row after writing | `readRow_(t, rowNumber)` |
 | Run under the script lock | `withLock_(fn)` |
 | A row as a JSON place / dish | `rowToPlace_(row, col)` / `toDish_(row, col)` (both on `toRecord_`) |
-| Validate fields from the phone | `cleanFields_(input, options)` (`EDITABLE_FIELDS` only) / `cleanDish_(dish)` |
+| Validate fields from the phone | `cleanFields_(input, options)` (`EDITABLE_FIELDS` only; labels through `cleanLabels_`) / `cleanDish_(dish)` |
 | Any text written to the sheet | `sanitize_(value)` |
 | Checkbox or "yes" text | `isChecked_(value)`; compare for conflicts with `comparable_(field, value)` |
 | Master lists / add a new Tipe-Genre-Jenis value | `readOptions_()` / `appendOptions_(values, options)` |
@@ -120,6 +120,7 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 - `update` refuses the whole save if any changed field's current cell differs from `original` (edited on the other phone or in the sheet). Only cells whose value really changes are written.
 - Validation (`cleanValue_`): text ≤ 200 characters (reviews ≤ 1000); ratings must be a Master `Ratings` value or empty; Instagram accepts `@name` (turned into `https://www.instagram.com/name/`) or an `https://instagram.com/…` link; `Link Google` must be an `https://` Maps link (`isMapsUrl_`) or `https://share.google/…`.
 - `UniqueName`, `Hyperlink` and `Best Dish` are derived and not in `EDITABLE_FIELDS`.
+- `Labels` holds any number of free labels in one cell as `"A, B"`. `cleanLabels_` accepts a list or comma-separated text, trims, drops blanks and case-insensitive repeats, and refuses a label over 40 characters or more than 20 labels. No Master list: the phone suggests labels already used on other places.
 
 ### 5.3 Dishes
 - One row per dish in "Dishes", linked by `App ID`; `UniqueName` is a readable copy only. `Liked` is `Yes`, `No` or empty.
@@ -152,4 +153,5 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 - `npm run push-prod` copies `.clasp-prod.json` to `.clasp.json` and runs `clasp push -f`, which replaces every file in the project.
 - After a push, update the **existing** deployment (Deploy → Manage deployments → edit → New version) so the `/exec` URL stays the same on both phones. A new deployment means a new URL to re-enter on each phone.
 - First run on a new spreadsheet: set Script Properties (incl. `PEOPLE`) → `setupSheet` → fill Master → `checkColumns` → deploy.
+- After a release that adds a "Food List" column (e.g. `Labels`) to a sheet that already has rows: run `addMissingColumns`, then `checkColumns`.
 - Keep this file current (root `CLAUDE.md` § 4).

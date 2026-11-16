@@ -40,8 +40,10 @@
           </div>
           <label class="check"><input id="show-closed" type="checkbox"> Show closed places</label>
         </details>
+        <div id="label-chips" class="chips scroll" aria-label="Labels" hidden></div>
         <div class="row">
           <span id="count" class="muted"></span>
+          <button id="copy-list" type="button" class="button">Copy list</button>
           <button id="refresh" type="button" class="button">Refresh</button>
         </div>
       </div>
@@ -113,6 +115,8 @@
       <p id="ios-hint" class="muted" hidden>Optional: to get a home-screen icon, tap Share, then “Add to Home Screen”.</p>
     </section>
   </main>
+
+  <p id="toast" class="toast" role="status" hidden></p>
 
   <nav class="tabbar" aria-label="Sections">
     <button type="button" data-tab="all">📋<span>All</span></button>

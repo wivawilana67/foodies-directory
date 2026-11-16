@@ -46,7 +46,7 @@ function addManual() {
 }
 
 // Android share target opens ./?title=…&text=…&url=… (see manifest.webmanifest).
-export function readShare() {
+function readShare() {
   const params = new URLSearchParams(location.search);
   const shared = ['url', 'text', 'title'].map((k) => params.get(k)).filter(Boolean).join('\n');
   if (shared) history.replaceState(null, '', location.pathname);

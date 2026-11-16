@@ -5,7 +5,6 @@ export const state = {
   dishes: [],
   options: { rating: [], tipe: [], genre: [], jenis: [] },
   people: ['', ''],
-  fields: [],
   tab: 'all',
   here: null,
   current: null, // App ID of the open place

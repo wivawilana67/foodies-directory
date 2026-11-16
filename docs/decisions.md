@@ -57,6 +57,7 @@ The repo is public (free GitHub Pages), so no secrets in the repo.
 | D29 | Platforms: Android installs as an app (manifest + service worker + **Install app** button via `beforeinstallprompt`); iPhone must fully work in Safari from the URL, home-screen icon optional. Bottom tabs All · Wishlist · Near me · Add, closed places hidden by default, English UI. Extends D5 | Owner requirement (2026-11-15) | Built; not yet tested on real phones |
 | D30 | Labels: free tags, any number per place, in one "Labels" cell as `"A, B"`; typed on the phone with suggestions from labels used elsewhere (no Master list). The label chip row filters to places carrying **all** chosen labels | Owner's choice (2026-11-16); one cell keeps the sheet readable and needs no new tab; "all" narrows like the other filters | Built (`cleanLabels_`, `labelsControl`, `renderLabelChips`) |
 | D31 | Copy and share: three lines (name; landmark, district, city, country; Google Maps link) from a card's ⧉, the place's Copy, or the phone's share menu (Web Share); **Copy list** copies every place shown, blank line between | Owner's choice (2026-11-16), for pasting into chats | Built (`placeText`, `copyText`, `sharePlace`, `copyList`) |
+| D32 | "Sticker" style: ink outlines, solid offset shadows, rounded corners, tomato / sunflower / mint / lilac on cream; Nunito + Fredoka bundled in `web/fonts/` (OFL), not loaded from Google Fonts | Owner picked B of three samples (2026-11-16): "cute but sharp". Bundling keeps fonts offline and avoids a third-party request | Built (`styles.css`) |
 
 ## Open
 

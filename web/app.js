@@ -17,12 +17,11 @@ function apply(data) {
   state.dishes = data.dishes || [];
   state.options = { rating: [], tipe: [], genre: [], jenis: [], ...data.options };
   state.people = data.people?.length === 2 ? data.people : ['Person 1', 'Person 2'];
-  state.fields = data.fields || [];
 }
 
 onChange(() => {
-  const { places, dishes, options, people, fields } = state;
-  writeCache({ places, dishes, options, people, fields });
+  const { places, dishes, options, people } = state;
+  writeCache({ places, dishes, options, people });
   renderFilters();
   renderList();
 });

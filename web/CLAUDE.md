@@ -22,6 +22,7 @@ web/
 ├── geo.js                  # distanceKm (haversine), getPosition (Geolocation API)
 ├── sw.js                   # Service worker: network-first for own files, cache fallback offline
 ├── manifest.webmanifest    # name, icons, standalone display, share_target (Android)
+├── fonts/                  # Nunito (body) and Fredoka (headings), Latin woff2 + their OFL licences
 └── icons/                  # icon-192.png, icon-512.png (also maskable), apple-touch-icon.png (180)
 ```
 
@@ -60,7 +61,7 @@ Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`; `list` →
 |---|---|
 | `foodies.backendUrl` | Apps Script `/exec` URL (must match `https://script.google.com/macros/s/…/exec`) |
 | `foodies.token` | Shared token |
-| `foodies.cache` | Last data `{places, dishes, options, people, fields}` for offline / instant start; rewritten after every change |
+| `foodies.cache` | Last data `{places, dishes, options, people}` for offline / instant start; rewritten after every change |
 
 ---
 
@@ -112,8 +113,10 @@ Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`; `list` →
 
 ## 6. Design Preferences
 
-- Tokens in `styles.css` `:root`: `--bg`, `--surface`, `--text`, `--muted`, `--border`, `--accent` (`#c2410c` light / `#fb923c` dark), `--accent-text`. Dark mode follows `prefers-color-scheme`.
-- Single column, max 640 px, 16 px side gutter; sticky orange top bar (title, Install app, ⚙); fixed bottom tabs All · Wishlist · Near me · Add.
+- **"Sticker" look** (owner's pick, 2026-11-16): every box has a 2 px ink outline (`--line`), rounded corners (14–18 px; chips and badges fully round) and a solid offset shadow (`--shadow`, `--shadow-big`); pressing a button shifts it into its shadow.
+- Tokens in `styles.css` `:root`: `--bg`, `--surface`, `--soft`, `--text`, `--muted`, `--line`, `--accent` (tomato), `--accent-text`, the pastel fills `--sun` (wishlist, toast, active tab, Install), `--mint` (tried), `--lilac` (labels) with `--on-pastel` text, `--body` / `--display` fonts. Dark mode follows `prefers-color-scheme` and redefines the tokens only; pastels keep dark text in both themes.
+- Fonts are bundled (works offline, no Google request): Nunito for text, Fredoka for headings, Latin subset only, in `fonts/` with their SIL Open Font Licences; both are in `SHELL`. Other scripts fall back to the system font.
+- Single column, max 640 px, 16 px side gutter; sticky cream top bar (title, Install app, ⚙); fixed bottom tabs All · Wishlist · Near me · Add. `theme-color` follows light / dark.
 - English UI; the sheet's own labels (Tipe, Genre, Jenis) are kept.
 - Icon: cream plate on orange (`icons/`), motif kept inside the maskable safe zone.
 - `[hidden]` is forced to `display: none` so classes with `display` cannot reveal hidden elements.

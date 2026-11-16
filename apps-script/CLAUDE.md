@@ -37,7 +37,7 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 
 | Action | Request fields | Handler | Response | Places calls |
 |---|---|---|---|---|
-| `list` | — | `listPlaces_` | `places[]` (keys = logical fields found, `tried` / `closed` as booleans), `dishes[]`, `options{rating,tipe,genre,jenis}`, `people[2]`, `fields[]` | 0 |
+| `list` | — | `listPlaces_` | `places[]` (keys = logical fields found, `tried` / `closed` as booleans), `dishes[]`, `options{rating,tipe,genre,jenis}`, `people[2]` | 0 |
 | `lookup` | `input` (link, shared text or name) | `lookup_` | `places[]` from `toPlace_` (`placeId, name, address, lat, lng, country, city, district, googleCategory, mapsUrl`) | 1 (GetPlace or SearchText) |
 | `add` | `placeId` (optional), `fields{…EDITABLE_FIELDS}` | `addPlace_` | `duplicate`, `place` | 0 if the lookup is still cached, else 1; 0 without `placeId` |
 | `update` | `id` (App ID), `changes{…}`, `original{…}` | `updatePlace_` | `place` | 0 |

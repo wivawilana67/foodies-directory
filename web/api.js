@@ -31,7 +31,7 @@ export function saveSettings(url, token) {
   if (!write(KEYS.url, url) || !write(KEYS.token, token)) throw new Error('This browser blocked saving settings');
 }
 
-// Last `list` response {places, dishes, options, people, fields}; missing parts are filled in by the caller.
+// Last `list` response {places, dishes, options, people}; missing parts are filled in by the caller.
 export function readCache() {
   try {
     return JSON.parse(read(KEYS.cache)) || {};

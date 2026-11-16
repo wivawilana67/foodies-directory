@@ -37,6 +37,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
     ├── *.js                    # ES modules: app, state, ui, list, place, dishes, add, api, geo
     ├── sw.js                   # Service worker (network-first, offline fallback)
     ├── manifest.webmanifest    # Install metadata + Android share target
+    ├── fonts/                  # Bundled Nunito + Fredoka (woff2) and their OFL licences
     └── icons/                  # PNG icons (192, 512, 180 apple-touch)
 ```
 
@@ -65,7 +66,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 | Tabs, filters, sort, near me, cards | `web/list.js` + `web/index.html`; tab switching in `web/app.js` (`selectTab`) |
 | Place detail and add / edit form | `web/place.js` |
 | Install button, iPhone hint, Back button | `web/app.js` (`initInstall`, `popstate`) |
-| Look and feel | `web/styles.css` (tokens on `:root`) |
+| Look and feel ("Sticker" style) | `web/styles.css` (tokens on `:root`), fonts in `web/fonts/` |
 | Install name, icon, share target | `web/manifest.webmanifest`, `web/icons/` |
 | Backend deploy targets or npm scripts | `apps-script/.clasp-*.json` (local only) / root `package.json` |
 | Front-end deploy | `.github/workflows/pages.yml` |

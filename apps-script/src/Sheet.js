@@ -222,7 +222,7 @@ function listPlaces_() {
   t.rows.forEach((r) => {
     if (String(r[t.col.name]).trim()) places.push(rowToPlace_(r, t.col));
   });
-  return { places, dishes: listDishes_(), options: readOptions_(), people: people_(), fields: Object.keys(t.col) };
+  return { places, dishes: listDishes_(), options: readOptions_(), people: people_() };
 }
 
 // Adds a place. With a placeId (picked from lookup_), Google data comes from the server's lookup cache, so

@@ -1,7 +1,7 @@
 // The All, Wishlist and Near me tabs: one list with shared filters, sorted by score or by distance.
 
 import { state } from './state.js';
-import { $, el, text, areaOf, labelsOf, coordsOf, formatKm, placeText, copyText, toast } from './ui.js';
+import { $, el, text, unique, areaOf, labelsOf, coordsOf, formatKm, placeText, copyText, toast } from './ui.js';
 import { distanceKm } from './geo.js';
 import { openPlace } from './place.js';
 
@@ -24,8 +24,6 @@ function fillSelect(select, values, allLabel) {
     ...values.map((v) => el('option', { value: v, textContent: v })));
   select.value = values.includes(current) ? current : '';
 }
-
-const unique = (list) => [...new Set(list.map(text).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
 function renderLabelChips() {
   const all = unique(state.places.flatMap(labelsOf));

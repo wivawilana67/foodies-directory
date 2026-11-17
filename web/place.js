@@ -3,20 +3,20 @@
 
 import { call } from './api.js';
 import { state, changed, placeById, upsert } from './state.js';
-import { $, el, text, httpsUrl, mapsHref, show, labelsOf, locationOf, placeText, copyText, canShare, sharePlace } from './ui.js';
+import { $, el, text, unique, httpsUrl, mapsHref, show, labelsOf, locationOf, placeText, copyText, canShare, sharePlace } from './ui.js';
 import { dishList } from './dishes.js';
 
 const NEW = '__new__';
 const CHECKS = ['tried', 'closed'];
 
-// [field, label, kind]; kinds: text, url, choice (Master list + add new), labels, rating, note, check.
+// [field, label, kind]; kinds: text, url, choice (Master list + add new), suggest (free text with values used elsewhere), labels, rating, note, check.
 function formFields() {
   const [p1, p2] = state.people;
   return [
     ['name', 'Name', 'text'],
-    ['country', 'Country', 'text'],
-    ['city', 'City', 'text'],
-    ['district', 'District / area', 'text'],
+    ['country', 'Country', 'suggest'],
+    ['city', 'City', 'suggest'],
+    ['district', 'District / area', 'suggest'],
     ['landmark', 'Street / landmark', 'text'],
     ['tipe', 'Tipe', 'choice'],
     ['genre', 'Genre', 'choice'],
@@ -175,6 +175,12 @@ function control(field, kind, current) {
   if (kind === 'check') {
     const box = el('input', { type: 'checkbox', checked: Boolean(current) });
     return { nodes: [box], value: () => box.checked };
+  }
+  if (kind === 'suggest') {
+    const input = el('input', { type: 'text', maxLength: 200, value: text(current), autocomplete: 'off' });
+    input.setAttribute('list', `suggest-${field}`);
+    const options = unique(state.places.map((p) => p[field])).map((v) => el('option', { value: v }));
+    return { nodes: [input, el('datalist', { id: `suggest-${field}` }, ...options)], value: () => input.value.trim() };
   }
   // url fields stay type="text" so "@name" is accepted; inputMode still brings up the URL keyboard.
   const input = kind === 'note'

@@ -1,4 +1,4 @@
-// Google Maps links: find, resolve short links, and read the place ID / name / pin from a long URL.
+// Google Maps links: find, resolve short links and share.google links, and read the place ID / name / pin from a long URL.
 // The URL patterns below come from observed links, not from a Google spec; test with real links.
 
 function extractUrl_(text) {
@@ -31,6 +31,32 @@ function resolveMapsLink_(url) {
     url = String(next);
   }
   throw new Error('Too many redirects');
+}
+
+function isShareUrl_(url) {
+  const m = String(url).match(/^https?:\/\/([^/?#:]+)/i);
+  return Boolean(m) && m[1].toLowerCase() === 'share.google';
+}
+
+// share.google links (Google's Share button) redirect to a Google Search page whose q= is the place name,
+// or to Maps. Returns {mapsUrl} or {name}. Hops seen from a PC on 2026-11-17; unverified from Apps Script.
+function resolveShareLink_(url) {
+  for (let hop = 0; hop < 5; hop++) {
+    const consent = url.match(/^https:\/\/consent\.google\.[a-z.]+\/.*[?&]continue=([^&]+)/i);
+    if (consent) url = safeDecode_(consent[1]);
+    if (isMapsUrl_(url)) return { mapsUrl: url };
+    if (/^https:\/\/(www\.)?google\.[a-z.]+\/search\?/i.test(url)) {
+      const q = url.match(/[?&]q=([^&#]+)/);
+      if (q && decodePlus_(q[1])) return { name: decodePlus_(q[1]) };
+    }
+    if (!isShareUrl_(url) && !/^https:\/\/(www\.)?google\.[a-z.]+\/share\.google([?#]|$)/i.test(url)) break;
+    const resp = UrlFetchApp.fetch(url, { followRedirects: false, muteHttpExceptions: true });
+    const headers = resp.getAllHeaders();
+    const next = headers.Location || headers.location;
+    if (!next) throw new Error('Share link did not redirect (HTTP ' + resp.getResponseCode() + ')');
+    url = String(next);
+  }
+  throw new Error('Share link did not lead to a place');
 }
 
 // Returns {placeId, name, near}; any part may be empty.

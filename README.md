@@ -5,8 +5,9 @@ Our personal directory of places to eat, on the phone. A Google Sheet is the dat
 - **All / Wishlist / Near me** tabs: every place sorted by our scores, the places not tried yet, and everything sorted by distance from where you stand.
 - **A full place record**: country, city, district, landmark, Tipe / Genre / Jenis, price, Google Maps and Instagram links, a score and a review from each of us.
 - **Dishes per place**: what we ate, the price, liked or not, a note; starred dishes become the place's "Best Dish".
-- **Add a place** by pasting a Google Maps link, sharing from Google Maps (Android), or typing a name. Google fills in the country, city, district, coordinates and Maps link. Places not on Google Maps can be added by name.
+- **Add a place** by pasting a Google Maps or share.google link, sharing from Google Maps (Android), or typing a name. Google fills in the country, city, district, coordinates and Maps link. Places not on Google Maps can be added by name.
 - **Labels**: any number of your own tags per place ("Date night", "Trip Tokyo", "Halal"), to filter the lists.
+- **Photos**: up to 5 of our own per place and per dish, from the camera or the library; the first one is the card's cover.
 - **Copy and share**: a place's name, location and Google Maps link, ready to paste into a chat; or a whole filtered list at once.
 - **Edit everything from the phone**, with a check that refuses to overwrite a change made on the other phone or in the sheet.
 
@@ -24,7 +25,7 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 
 ## Tech Stack & Constraints
 
-- Google Sheets (database), Apps Script V8 (backend), Places API (New) — SearchText and GetPlace only.
+- Google Sheets (database), Apps Script V8 (backend), Places API (New) — SearchText and GetPlace only, Google Drive for photos.
 - Vanilla HTML/CSS/JS PWA, no build step, hosted on GitHub Pages and published from `master` by a GitHub Actions workflow.
 - Branches: `master` is the only long-lived branch: the default branch, the base of every PR, and prod (merging publishes the front end).
 - `clasp` (root `package.json`) is the only dependency.
@@ -46,9 +47,9 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 - **Copy list** copies every place currently shown (after search, labels and filters), separated by a blank line.
 
 ### Add a place
-1. **Android:** in Google Maps, Share → Foodies. **iPhone or anywhere:** copy the Maps link, open **Add**, tap **Paste** (or long-press paste). Or type a name, e.g. "Bakmi GM Bandung".
+1. **Android:** in Google Maps, Share → Foodies. **iPhone or anywhere:** copy the Maps link, open **Add**, tap **Paste** (or long-press paste). Or type a name, e.g. "Bakmi GM Bandung". A share.google link (from Google's Share button) works too: the app takes the place name it carries and searches for it.
 2. Tap **Search** → up to 5 matches from Google → **Pick** the right one.
-3. The place form opens, filled from Google (name, country, city, district, Maps link). Fix anything, add Tipe / Genre / Jenis (pick from the Master lists or **+ Add new…**), scores, reviews, price, Instagram → **Save**.
+3. The place form opens, filled from Google (name, country, city, district, Maps link). Fix anything, add Tipe / Genre / Jenis (pick from the Master lists or **+ Add new…**), scores, reviews, price, Instagram → **Save**. Country, City and District suggest values already used on other places. Google's names and addresses come in English, so a city is spelled one way.
 4. A row is appended to "Food List". If the place is already there, nothing is written and the app opens the existing one.
 5. Not on Google Maps? **Add it by name** opens the same form without Google data.
 
@@ -56,9 +57,20 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 - **Mark as tried / Move to wishlist** on the place, or **Edit** to change any field. **Labels:** tap a label to remove it, type a new one and tap **Add**, or tap a suggested label used on other places. Only changed fields are sent; if someone changed the same field on the other phone or in the sheet meanwhile, the save is refused with "Refresh and try again".
 - **Dishes:** **+ Add dish** (name, price, 👍 / 👎, note, ⭐ best). Tap a dish to edit it; **Delete** asks for a second tap. Starring or unstarring rewrites the place's Best Dish.
 
+### Photos
+- On a place, **Photos** shows how many it has, with **View photos** and **+ Add photo**. **+ Add photo** opens the phone's camera or photo library; several pictures can be picked at once. On a dish, **+ Add photo** appears once the dish is saved.
+- Up to 5 photos per place and 5 per dish. The phone shrinks each picture to JPEG (longest side 1600 px) before uploading it.
+- **View photos** shows the place's photos, then each dish's. Tap one for full screen; **Remove** asks for a second tap. Back closes the viewer.
+- The first photo of a place is its cover on the list; a place without photos shows the first photo of one of its dishes.
+- Photos are stored in Google Drive, in a folder called "Foodies Photos", and each is shared with anyone who has its link. A removed photo goes to Drive's trash (kept 30 days).
+- Photos load from Google Drive, so they need a connection; they are not kept for offline use.
+
 ### Install
 - **Android (Chrome):** the **Install app** button in the top bar (or Chrome's menu → Install app).
 - **iPhone (Safari):** works from the URL; Settings shows how to add a home-screen icon (Share → Add to Home Screen).
+
+### Settings
+- **⚙** in the top bar opens Settings: the backend URL and token, **Theme** (System follows the phone; Light or Dark), and on iPhone a hint to add the app to the home screen. The theme is chosen per phone.
 
 ### Backfill old rows (owner, at migration)
 Run `backfillBatch` in the Apps Script editor: 15 rows per run, resumable. Check the result in the sheet, then keep running until it logs 0 remaining. See `apps-script/CLAUDE.md` § 5.5.
@@ -72,27 +84,31 @@ flowchart LR
   Phone["PWA on phone<br/>(GitHub Pages)"] -- "POST text/plain {action, token}" --> GAS["Apps Script web app<br/>(runs as owner)"]
   GAS -- "read / append / edit with conflict check" --> Sheet[("Google Sheet<br/>Food List, Dishes, Master")]
   GAS -- "SearchText / GetPlace + API key" --> Places["Places API (New)"]
-  GAS -- "resolve short link" --> Maps["maps.app.goo.gl"]
+  GAS -- "resolve short or share.google link" --> Maps["maps.app.goo.gl / share.google"]
+  GAS -- "photos (JPEG) into the folder" --> Drive[("Google Drive<br/>Foodies Photos")]
+  Phone -- "show photos (thumbnail URL)" --> Drive
   Phone -. "location (on device only)" .-> Phone
 ```
 
 | Process | Entry point | Reads | Writes | Places calls |
 |---|---|---|---|---|
 | Load list | `list` → `listPlaces_` | Food List, Dishes, Master | `App ID` for rows typed in the sheet without one | 0 |
-| Look up | `lookup` → `lookup_` | — | Script cache (10 min), `USAGE` | 1 |
+| Look up | `lookup` → `lookup_` | — | Script cache (10 min), `USAGE` | 1 (a share.google link is followed by Apps Script first) |
 | Add place | `add` → `addPlace_` | Food List, Master, script cache | Food List (append row), Master (new Tipe/Genre/Jenis) | 0–1 |
 | Edit place | `update` → `updatePlace_` | Food List, Master | Changed Food List cells, UniqueName / Hyperlink, dish UniqueName, Master | 0 |
 | Save dish | `saveDish` → `saveDish_` | Food List, Dishes | Dishes (append or edit row), place's Best Dish | 0 |
-| Delete dish | `deleteDish` → `deleteDish_` | Dishes | Dishes (delete row), place's Best Dish | 0 |
+| Delete dish | `deleteDish` → `deleteDish_` | Dishes | Dishes (delete row), place's Best Dish, the dish's photos to Drive trash | 0 |
+| Add photo | `addPhoto` → `addPhoto_` | Food List or Dishes (`Photos` cell) | Drive folder (new JPEG, shared by link), `Photos` cell | 0 |
+| Delete photo | `deletePhoto` → `deletePhoto_` | Food List or Dishes (`Photos` cell) | `Photos` cell; Drive file to trash | 0 |
 | Backfill | `backfillBatch` (editor) | Food List | Empty app cells + `Lookup Status` | 1 per row |
-| Set up | `setupSheet`, `checkColumns`, `addMissingColumns` (editor) | Header rows | Header rows, Dishes and Master tabs | 0 |
+| Set up | `setupSheet`, `checkColumns`, `addMissingColumns`, `setupPhotos` (editor) | Header rows | Header rows, Dishes and Master tabs; `setupPhotos` creates the Drive folder and `PHOTO_FOLDER_ID` | 0 |
 
 **"Food List" user columns** (the old sheet's names): UniqueName, Nama Resto, Hyperlink, Negara, Kota, Lokasi, Jalan / Patokan, Rating (person 1), Rating (person 2), Range Harga (Per Orang), Tipe Foodies, Genre Foodies, Jenis Foodies, Labels (comma-separated), Best Dish, Review (person 1), Review (person 2), Link Instagram, Link Google, Closed, Have Tried?. The two names come from Script Property `PEOPLE`.
-**App columns:** App ID, Place ID, Lat, Lng, Address, Google Category, Added At, Lookup Status.
-**"Dishes":** Dish ID, App ID, UniqueName, Dish, Price, Liked, Best, Note, Added At. **"Master":** Ratings, Tipe Foodies, Genre Foodies, Jenis Foodies.
+**App columns:** App ID, Place ID, Lat, Lng, Address, Google Category, Added At, Lookup Status, Photos (Drive file IDs, comma-separated; the first is the cover).
+**"Dishes":** Dish ID, App ID, UniqueName, Dish, Price, Liked, Best, Note, Added At, Photos (same format). **"Master":** Ratings, Tipe Foodies, Genre Foodies, Jenis Foodies.
 
-**Script Properties:** `PLACES_API_KEY`, `API_TOKEN`, `SPREADSHEET_ID`, `PEOPLE`, optional `DAILY_LIMIT` (50) / `MONTHLY_LIMIT` (900), and `USAGE` (written by code).
-**On each phone (localStorage):** backend URL, token, last list (places, dishes, Master lists, names).
+**Script Properties:** `PLACES_API_KEY`, `API_TOKEN`, `SPREADSHEET_ID`, `PEOPLE`, `PHOTO_FOLDER_ID` (written by `setupPhotos`), optional `DAILY_LIMIT` (50) / `MONTHLY_LIMIT` (900), and `USAGE` (written by code).
+**On each phone (localStorage):** backend URL, token, last list (places, dishes, Master lists, names), theme (`foodies.theme`).
 
 ---
 
@@ -107,6 +123,7 @@ There is one environment (no dev copy): the Apps Script project in `.clasp-prod.
 | Apps Script ID | `apps-script/.clasp-prod.json` → `scriptId` | No — gitignored; only `.clasp.example.json` is committed |
 | Sheet ID | Script Property `SPREADSHEET_ID` | No — stored in Apps Script |
 | Places API key, token | Script Properties `PLACES_API_KEY`, `API_TOKEN` | No |
+| Drive photo folder ID | Script Property `PHOTO_FOLDER_ID` (written by `setupPhotos`) | No |
 | Web app `/exec` URL | Entered on each phone (Settings) | No |
 
 Keep a copy of each in your password manager so a new laptop or phone can be set up again.
@@ -117,8 +134,8 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 3. In the Apps Script editor, Project Settings → IDs → copy the **Script ID**. Copy `apps-script/.clasp.example.json` to `apps-script/.clasp-prod.json` and paste the Script ID. The file is gitignored.
 4. `npm run push-prod`. The push replaces every file in the project.
 5. In the editor → Project Settings → Script Properties, add `PLACES_API_KEY`, `API_TOKEN` (32+ random characters, e.g. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`), `SPREADSHEET_ID` (from the sheet URL) and `PEOPLE` (the two names, comma-separated, as they should appear in the Rating / Review headers).
-6. New, empty sheet: run `setupSheet` (writes the "Food List" headers, creates "Dishes" and "Master"), then fill the Master lists (Ratings in order worst → best, Tipe, Genre, Jenis). Sheet with data (a new column such as Labels, or migration): run `addMissingColumns` instead.
-7. Run `checkColumns` and confirm nothing is MISSING.
+6. New, empty sheet: run `setupSheet` (writes the "Food List" headers, including Photos, and creates "Dishes" and "Master"), then fill the Master lists (Ratings in order worst → best, Tipe, Genre, Jenis). Sheet with data (a new column such as Labels or Photos, or migration): run `addMissingColumns` instead (it covers "Food List" and "Dishes").
+7. Run `checkColumns` and confirm nothing is MISSING. Then run `setupPhotos` once and approve the Drive access it asks for; it creates the "Foodies Photos" folder and stores `PHOTO_FOLDER_ID`. Photos do not work before this.
 8. Deploy → New deployment → Web app, execute as **Me**, access **Anyone**. Copy the `/exec` URL to your password manager. Opening it in a browser only shows `{"ok":true}`; the app talks to it with POST.
 
 ### Front end
@@ -131,12 +148,13 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 
 ### Deploy changes
 - Backend: `npm run push-prod`, then Deploy → Manage deployments → edit the existing deployment → New version. The URL stays the same.
+- First release with photos, in this order: `npm run push-prod`; editor `addMissingColumns` (until it runs, `list` and the dish actions fail with "Missing columns … Photos"); editor `setupPhotos` and approve the Drive access; update the backend deployment to a new version; then merge the front-end PR. The manifest now declares explicit OAuth scopes, so the first editor run may ask to authorize again.
 - Front end: open a PR into `master` and merge it; the workflow deploys automatically. If the PR also changes the backend, push and update the backend deployment first.
 
 ## Install on the phones
 
 - **Android (Chrome):** open the GitHub Pages URL → tap **Install app** in the top bar (or Chrome menu → Install app). Open it, enter the backend URL and token in Settings. "Foodies" now appears in the Share menu of Google Maps.
-- **iPhone (Safari):** open the URL and enter the backend URL and token; everything works in Safari. Optional: Share → **Add to Home Screen** for an icon. To add a place, copy the Maps link and use **Paste** in Add.
+- **iPhone (Safari):** open the URL and enter the backend URL and token; everything works in Safari. Optional: Share → **Add to Home Screen** for an icon. To add a place, copy the Maps or share.google link and use **Paste** in Add.
 
 ## Keeping This README Current
 

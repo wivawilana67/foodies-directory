@@ -12,6 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <script>try { const t = localStorage.getItem('foodies.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}</script>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -113,6 +114,12 @@
         <label>Token <input id="setup-token" type="password" autocomplete="off"></label>
         <button type="submit" class="button primary">Save and check</button>
       </form>
+      <fieldset class="liked theme">
+        <legend>Theme</legend>
+        <label><input type="radio" name="theme" value="system"> System</label>
+        <label><input type="radio" name="theme" value="light"> Light</label>
+        <label><input type="radio" name="theme" value="dark"> Dark</label>
+      </fieldset>
       <p id="setup-status" class="muted" role="status"></p>
       <p id="ios-hint" class="muted" hidden>Optional: to get a home-screen icon, tap Share, then “Add to Home Screen”.</p>
     </section>

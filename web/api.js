@@ -1,7 +1,7 @@
 // Backend calls and on-device storage. The backend URL and token are entered on each phone and
 // stored only in this browser; they never go into the repo.
 
-const KEYS = { url: 'foodies.backendUrl', token: 'foodies.token', cache: 'foodies.cache' };
+const KEYS = { url: 'foodies.backendUrl', token: 'foodies.token', cache: 'foodies.cache', theme: 'foodies.theme' };
 const BACKEND_PATTERN = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/;
 
 function read(key) {
@@ -29,6 +29,17 @@ export function saveSettings(url, token) {
   if (!BACKEND_PATTERN.test(url)) throw new Error('The backend URL must look like https://script.google.com/macros/s/…/exec');
   if (token.length < 16) throw new Error('The token looks too short');
   if (!write(KEYS.url, url) || !write(KEYS.token, token)) throw new Error('This browser blocked saving settings');
+}
+
+const THEMES = ['system', 'light', 'dark'];
+
+export function getTheme() {
+  const theme = read(KEYS.theme);
+  return THEMES.includes(theme) ? theme : 'system';
+}
+
+export function saveTheme(theme) {
+  if (THEMES.includes(theme)) write(KEYS.theme, theme);
 }
 
 // Last `list` response {places, dishes, options, people}; missing parts are filled in by the caller.

@@ -34,8 +34,9 @@
   color-scheme: light;
 }
 
+/* Dark tokens: follow the phone unless Settings → Theme forces light or dark (data-theme on <html>). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #17151f;
     --surface: #24212f;
     --soft: #2e2a3b;
@@ -46,6 +47,18 @@
     --accent-text: #1f1b2e;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #17151f;
+  --surface: #24212f;
+  --soft: #2e2a3b;
+  --text: #f5f1e8;
+  --muted: #b3acc2;
+  --line: #f5f1e8;
+  --accent: #ff7d5e;
+  --accent-text: #1f1b2e;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }

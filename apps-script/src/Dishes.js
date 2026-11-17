@@ -87,7 +87,9 @@ function deleteDish_(body) {
     const i = findRow_(t, 'id', dishId);
     const placeKey = String(t.rows[i][t.col.place]);
     const wasBest = isChecked_(t.rows[i][t.col.best]);
+    const photos = photoIds_(t.rows[i][t.col.photos]);
     t.sheet.deleteRow(rowNumber_(i));
+    trashPhotos_(photos);
     console.log('deleteDish_', placeKey, dishId);
     if (!wasBest) return { place: placeKey };
     const places = readPlaces_();

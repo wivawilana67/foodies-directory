@@ -26,7 +26,7 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 
 - Google Sheets (database), Apps Script V8 (backend), Places API (New) — SearchText and GetPlace only.
 - Vanilla HTML/CSS/JS PWA, no build step, hosted on GitHub Pages and published from `master` by a GitHub Actions workflow.
-- Branches: `develop` is the base (default branch, all PRs); `master` is prod.
+- Branches: `master` is the only long-lived branch: the default branch, the base of every PR, and prod (merging publishes the front end).
 - `clasp` (root `package.json`) is the only dependency.
 - The repo is public: secrets, IDs and URLs live in Script Properties or on each phone, never in git.
 
@@ -122,16 +122,16 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 8. Deploy → New deployment → Web app, execute as **Me**, access **Anyone**. Copy the `/exec` URL to your password manager. Opening it in a browser only shows `{"ok":true}`; the app talks to it with POST.
 
 ### Front end
-1. Push this repo to GitHub (public), both `develop` and `master`.
-2. GitHub → Settings → General → Default branch → `develop`.
+1. Push this repo to GitHub (public), `master` only.
+2. GitHub → Settings → General → Default branch → `master`.
 3. GitHub → Settings → Pages → Source: **GitHub Actions**.
-4. GitHub → Settings → Environments → `github-pages` → Deployment branches: allow `master` (by default only the default branch, `develop`, may deploy).
-5. Recommended: protect `develop` and `master` (Settings → Branches) so they change only through PRs.
-6. Merge `develop` → `master`; the "Deploy web to GitHub Pages" workflow publishes `web/`.
+4. GitHub → Settings → Environments → `github-pages` → Deployment branches: allow `master` (it is the default branch, so by default only `master` may deploy).
+5. Recommended: protect `master` (Settings → Branches) so it changes only through PRs.
+6. Merging a PR into `master` publishes `web/`; the "Deploy web to GitHub Pages" workflow runs.
 
 ### Deploy changes
 - Backend: `npm run push-prod`, then Deploy → Manage deployments → edit the existing deployment → New version. The URL stays the same.
-- Front end: PR `develop` → `master` and merge. The workflow deploys automatically.
+- Front end: open a PR into `master` and merge it; the workflow deploys automatically. If the PR also changes the backend, push and update the backend deployment first.
 
 ## Install on the phones
 

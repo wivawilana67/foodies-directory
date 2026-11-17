@@ -19,7 +19,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 ├── .gitignore                  # node_modules/, every real .clasp*.json, local Claude settings
 ├── .github/
 │   ├── workflows/pages.yml     # Publishes web/ to GitHub Pages on every push to master
-│   └── dependabot.yml          # Weekly bumps of the SHA-pinned actions (PRs into develop)
+│   └── dependabot.yml          # Weekly bumps of the SHA-pinned actions (PRs into master)
 ├── .claude/skills/
 │   └── development-documentation/   # Keeps the docs in sync with every code change
 ├── docs/
@@ -150,14 +150,11 @@ Use the `development-documentation` skill.
 - Follow `.gitignore`. Review modified and untracked files before staging. Commit doc updates with the code they describe.
 
 ### Branching Model
-- Only two long-lived branches: `develop` and `master`.
-  - `develop` is the **base**: the GitHub default branch, the base of every PR, where all work happens.
-  - `master` is **prod**: merging into it publishes the front end to GitHub Pages.
-- Short-lived `fix/*`, `feat/*`, `chore/*` branches start from `develop` and merge back into `develop`.
+- Only one long-lived branch: **`master`**. It is the GitHub default branch, the base of every PR, and **prod**: merging into it publishes `web/` to GitHub Pages via `.github/workflows/pages.yml`.
+- Short-lived `fix/*`, `feat/*`, `chore/*` branches start from `master` and merge back into `master` by PR.
 - Work on the checked-out branch. Create a branch or worktree only when the owner asks.
-- `master` changes only by merging `develop` (PR `develop` → `master`). Never commit, cherry-pick or open feature PRs against `master`.
+- **Merge = deploy.** When a change also touches `apps-script/`, merge only after the backend is pushed (`npm run push-prod`) and the deployment is updated (README → Deploy).
 
 ### Pull and Push
-- Before starting: `git checkout develop` and `git pull origin develop`. Commit or stash before pulling.
-- Push working branches under their own name and open PRs into `develop`. Never push directly to, or force-push, `develop` or `master`.
-- Release: once `develop` is verified, PR `develop` → `master` and merge; keep working from `develop`.
+- Before starting: `git checkout master` and `git pull origin master`. Commit or stash before pulling.
+- Push working branches under their own name and open PRs into `master`. Never push directly to, or force-push, `master`.

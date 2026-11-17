@@ -2,9 +2,10 @@
 // so the backend can refuse a save that would overwrite a change made elsewhere.
 
 import { call } from './api.js';
-import { state, changed, placeById, upsert } from './state.js';
+import { state, changed, placeById, dishesOf, upsert } from './state.js';
 import { $, el, text, unique, httpsUrl, mapsHref, show, labelsOf, locationOf, placeText, copyText, canShare, sharePlace } from './ui.js';
 import { dishList } from './dishes.js';
+import { MAX_PHOTOS, photoIdsOf, addPhotoButton, openGallery } from './photos.js';
 
 const NEW = '__new__';
 const CHECKS = ['tried', 'closed'];
@@ -88,6 +89,15 @@ export function renderPlace() {
     el('p', { className: 'score' }, el('strong', { textContent: name }), ` ${text(p[`rating${i + 1}`]) || '—'}`),
     text(p[`review${i + 1}`]) ? el('p', { className: 'review', textContent: text(p[`review${i + 1}`]) }) : null));
 
+  const placeCount = photoIdsOf(p).length;
+  const total = placeCount + dishesOf(p.id).flatMap(photoIdsOf).length;
+  const viewPhotos = el('button', { type: 'button', className: 'button', textContent: 'View photos' });
+  viewPhotos.addEventListener('click', () => openGallery());
+  const addPhoto = placeCount < MAX_PHOTOS ? addPhotoButton('place', p.id, (msg) => { status.textContent = msg; }, renderPlace) : null;
+  const photos = section('Photos',
+    el('p', { className: 'muted', textContent: total ? `${total} photo${total === 1 ? '' : 's'}` : 'No photos yet.' }),
+    el('div', { className: 'row' }, total ? viewPhotos : null, addPhoto));
+
   $('place-detail').replaceChildren(
     el('h2', { textContent: text(p.name) }),
     el('p', { className: 'meta', textContent: locationOf(p) }),
@@ -100,6 +110,7 @@ export function renderPlace() {
       el('a', { className: 'button primary', href: mapsHref(p), target: '_blank', rel: 'noopener', textContent: 'Maps' }),
       instagram ? el('a', { className: 'button', href: instagram, target: '_blank', rel: 'noopener', textContent: 'Instagram' }) : null,
       copy, share, tried, edit),
+    photos,
     section('Scores', ...people),
     section('Price per person', el('p', { textContent: text(p.price) || '—' })),
     section('Best dish', el('p', { textContent: text(p.bestDish) || 'Star a dish below to set it.' })),

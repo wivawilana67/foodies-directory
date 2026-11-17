@@ -70,7 +70,7 @@ export async function sharePlace(p) {
   }
 }
 
-const VIEWS = ['list', 'place', 'form', 'add', 'dish', 'setup'];
+const VIEWS = ['list', 'place', 'form', 'add', 'dish', 'photos', 'setup'];
 
 // Shows one view. push adds a history entry, so the phone's Back button returns to the previous view.
 export function show(view, push = false) {

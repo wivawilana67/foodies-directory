@@ -6,6 +6,7 @@ import { state, onChange, changed } from './state.js';
 import { $, show } from './ui.js';
 import { renderFilters, renderList, copyList } from './list.js';
 import { renderPlace } from './place.js';
+import { renderGallery } from './photos.js';
 import { initDishes } from './dishes.js';
 import { initAdd } from './add.js';
 
@@ -133,6 +134,7 @@ function init() {
   window.addEventListener('popstate', (event) => {
     const view = event.state?.view || 'list';
     if (view === 'place') renderPlace();
+    if (view === 'photos') renderGallery();
     show(view);
   });
   $('open-setup').addEventListener('click', () => show('setup', true));

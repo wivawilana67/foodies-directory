@@ -4,6 +4,7 @@ import { state } from './state.js';
 import { $, el, text, unique, areaOf, labelsOf, coordsOf, formatKm, placeText, copyText, toast } from './ui.js';
 import { distanceKm } from './geo.js';
 import { openPlace } from './place.js';
+import { coverOf, photoImg } from './photos.js';
 
 const LABELS = ['tipe', 'genre', 'jenis'];
 const FILTERS = [...LABELS, 'city'];
@@ -55,7 +56,9 @@ function placeCard(p, distance) {
     .map((name, i) => text(p[`rating${i + 1}`]) && `${name} ${text(p[`rating${i + 1}`])}`)
     .filter(Boolean).join(' · ');
   const labels = labelsOf(p);
+  const cover = coverOf(p);
   const open = el('button', { type: 'button', className: 'card-main' },
+    cover ? photoImg(cover, 200, 'card-thumb') : null,
     el('h3', { textContent: text(p.name) }),
     el('p', { className: 'meta', textContent: [areaOf(p), Number.isFinite(distance) ? formatKm(distance) : ''].filter(Boolean).join(' — ') }),
     el('p', { className: 'meta', textContent: LABELS.map((f) => text(p[f])).filter(Boolean).join(' · ') }),

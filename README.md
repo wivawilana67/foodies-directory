@@ -26,7 +26,7 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 
 - Google Sheets (database), Apps Script V8 (backend), Places API (New) — SearchText and GetPlace only.
 - Vanilla HTML/CSS/JS PWA, no build step, hosted on GitHub Pages and published by a GitHub Actions workflow: `master` at the site root (live), `develop` under `/test/` (test).
-- Branches: `develop` is the default branch and the base of every PR, and it is the test environment (merging publishes the test copy). `master` is prod (merging publishes the live app). A release is a PR `develop` → `master`.
+- Branches: `develop` is the default branch and the test environment: work is committed to it directly, and every push publishes the test copy. `master` is prod (merging publishes the live app). A release is a PR `develop` → `master`.
 - `clasp` (root `package.json`) is the only dependency.
 - The repo is public: secrets, IDs and URLs live in Script Properties or on each phone, never in git.
 
@@ -127,8 +127,8 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 2. GitHub → Settings → General → Default branch → `develop`.
 3. GitHub → Settings → Pages → Source: **GitHub Actions**.
 4. GitHub → Settings → Environments → `github-pages` → Deployment branches: allow exactly `develop` and `master`.
-5. Recommended: protect both `develop` and `master` (Settings → Branches) so they change only through PRs.
-6. Merging a PR into `develop` publishes the test copy under `/test/`; merging into `master` publishes the live app at the site root. Either push rebuilds the whole site from both branches, and the "Deploy web to GitHub Pages" workflow runs.
+5. Protect `master` (Settings → Branches): PR required (0 approvals), applies to admins, no force push or delete. `develop` stays open for direct commits.
+6. A push or merge into `develop` publishes the test copy under `/test/`; merging into `master` publishes the live app at the site root. Either push rebuilds the whole site from both branches, and the "Deploy web to GitHub Pages" workflow runs.
    Caveat: until the workflow is on `master` (the first release after it), a push to `master` runs the old workflow, which drops `/test/`.
 
 ### Test environment (once)
@@ -141,8 +141,8 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 
 ### Deploy changes
 - Backend: test first, then prod. `npm run push-test`, then Deploy → Manage deployments → edit the existing test deployment → New version. For a release, `npm run push-prod`, then the same on the live deployment. The URLs stay the same.
-- Front end: open a PR into `develop` and merge it; the test site updates under `/test/`. Release by opening a PR from `develop` into `master` and merging it; the live site updates.
-- Day to day: branch from `develop` → PR into `develop`. Before merging, if the change touches `apps-script/`, run `npm run push-test` and update the test deployment → merge (test site updates) → try it on both phones. Release: take a backup, `npm run push-prod`, update the live deployment, then PR `develop` → `master` and merge (live site updates).
+- Front end: commit and push to `develop` (or merge a PR into it); the test site updates under `/test/`. Release by opening a PR from `develop` into `master` and merging it; the live site updates.
+- Day to day: work on `develop`. If the change touches `apps-script/`, run `npm run push-test` and update the test deployment → push `develop` (test site updates) → try it on both phones. Release: take a backup, `npm run push-prod`, update the live deployment, then PR `develop` → `master` and merge (live site updates).
 
 ## Install on the phones
 

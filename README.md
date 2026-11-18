@@ -62,7 +62,7 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 - Up to 5 photos per place and 5 per dish. The phone shrinks each picture to JPEG (longest side 1600 px) before uploading it.
 - **View photos** shows the place's photos, then each dish's. Tap one for full screen; **Remove** asks for a second tap. Back closes the viewer.
 - The first photo of a place is its cover on the list; a place without photos shows the first photo of one of its dishes.
-- Photos are stored in Google Drive, in a folder called "Foodies Photos", and each is shared with anyone who has its link. A removed photo goes to Drive's trash (kept 30 days).
+- Photos are stored in Google Drive, in a folder called "Foodies Photos - <sheet name>", and each is shared with anyone who has its link. A removed photo goes to Drive's trash (kept 30 days).
 - Photos load from Google Drive, so they need a connection; they are not kept for offline use.
 
 ### Install
@@ -135,7 +135,7 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 4. `npm run push-prod`. The push replaces every file in the project.
 5. In the editor → Project Settings → Script Properties, add `PLACES_API_KEY`, `API_TOKEN` (32+ random characters, e.g. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`), `SPREADSHEET_ID` (from the sheet URL) and `PEOPLE` (the two names, comma-separated, as they should appear in the Rating / Review headers).
 6. New, empty sheet: run `setupSheet` (writes the "Food List" headers, including Photos, and creates "Dishes" and "Master"), then fill the Master lists (Ratings in order worst → best, Tipe, Genre, Jenis). Sheet with data (a new column such as Labels or Photos, or migration): run `addMissingColumns` instead (it covers "Food List" and "Dishes").
-7. Run `checkColumns` and confirm nothing is MISSING. Then run `setupPhotos` once and approve the Drive access it asks for; it creates the "Foodies Photos" folder and stores `PHOTO_FOLDER_ID`. Photos do not work before this.
+7. Run `checkColumns` and confirm nothing is MISSING. Then run `setupPhotos` once and approve the Drive access it asks for; it creates the "Foodies Photos - <sheet name>" folder and stores `PHOTO_FOLDER_ID`. Photos do not work before this.
 8. Deploy → New deployment → Web app, execute as **Me**, access **Anyone**. Copy the `/exec` URL to your password manager. Opening it in a browser only shows `{"ok":true}`; the app talks to it with POST.
 
 ### Front end

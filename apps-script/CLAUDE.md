@@ -54,7 +54,7 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 | `setupSheet` | `Setup.js` | New spreadsheet only: rewrites the "Food List" header row (refuses if it has data rows), creates "Dishes" and "Master" with headers, freezes row 1 |
 | `checkColumns` | `Setup.js` | Logs each tab's real headers and which configured fields were found |
 | `addMissingColumns` | `Setup.js` | "Food List" and "Dishes" with data: appends every configured header that is missing (a new column such as `Labels` or `Photos`, or app columns at migration) after the last column |
-| `setupPhotos` | `Setup.js` | Once: creates the "Foodies Photos" Drive folder and stores its ID in `PHOTO_FOLDER_ID`; does nothing if that property is set. The first run asks for Drive access |
+| `setupPhotos` | `Setup.js` | Once: creates the "Foodies Photos - <sheet name>" Drive folder and stores its ID in `PHOTO_FOLDER_ID`; does nothing if that property is set. The first run asks for Drive access |
 | `backfillBatch` | `Backfill.js` | Looks up the next `BACKFILL_BATCH` rows and fills their empty app cells |
 | `showUsage` | `Usage.js` | Logs today's and this month's lookup counts |
 
@@ -67,7 +67,7 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 | `SPREADSHEET_ID` | yes | ID of the spreadsheet holding "Food List", "Dishes", "Master" |
 | `PEOPLE` | yes | The two names, comma-separated; build the `Rating (<name>)` / `Review (<name>)` headers and the phone labels. Kept out of the public repo |
 | `DAILY_LIMIT` / `MONTHLY_LIMIT` | no | Lookup caps; default 50 / 900 (`Config.js`) |
-| `PHOTO_FOLDER_ID` | for photos | ID of the Drive folder "Foodies Photos" that holds the photo files; written by `setupPhotos` |
+| `PHOTO_FOLDER_ID` | for photos | ID of the Drive folder "Foodies Photos - <sheet name>" that holds the photo files; written by `setupPhotos` |
 | `USAGE` | written by code | `{day, dayCount, month, monthCount}` |
 
 ---

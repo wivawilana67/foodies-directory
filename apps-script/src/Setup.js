@@ -57,7 +57,7 @@ function addMissingColumns() {
   });
 }
 
-// Once, before the first photo: creates the "Foodies Photos" Drive folder and stores its ID in PHOTO_FOLDER_ID.
+// Once, before the first photo: creates the "Foodies Photos - <sheet name>" Drive folder and stores its ID in PHOTO_FOLDER_ID.
 // The first run asks for Drive access.
 function setupPhotos() {
   const props = PropertiesService.getScriptProperties();
@@ -65,6 +65,7 @@ function setupPhotos() {
     Logger.log('PHOTO_FOLDER_ID is already set');
     return;
   }
-  props.setProperty(PROP.photoFolder, DriveApp.createFolder('Foodies Photos').getId());
-  Logger.log('Created the "Foodies Photos" folder in your Drive');
+  const name = 'Foodies Photos - ' + spreadsheet_().getName(); // live and test sheets get separate folders
+  props.setProperty(PROP.photoFolder, DriveApp.createFolder(name).getId());
+  Logger.log('Created the "%s" folder in your Drive', name);
 }

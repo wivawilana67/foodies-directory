@@ -157,12 +157,12 @@ Use the `development-documentation` skill.
 
 ### Branching Model
 - Two long-lived branches:
-  - **`develop`**: the GitHub default branch and the **test** environment; work is committed to it directly (feature branches are optional). Every push to it publishes the test copy of `web/` under `/test/`.
+  - **`develop`**: the GitHub default branch and the **test** environment; all work is committed to it directly. Every push to it publishes the test copy of `web/` under `/test/`.
   - **`master`**: **prod** (live). Merging into it publishes `web/` at the site root. Both are published by `.github/workflows/pages.yml`.
-- Optional short-lived `feat/*`, `fix/*`, `chore/*` branches start from `develop` and PR into `develop`. A release is a PR `develop` → `master`; `master` is protected (PR only, no force push or delete).
-- Work on the checked-out branch. Create a branch or worktree only when the owner asks.
+- **No new branches or worktrees** (`feat/*`, `fix/*`, `chore/*`, `git worktree`, agent worktrees) unless the owner explicitly asks for one in that request. A release is a PR `develop` → `master`, which needs no new branch; `master` is protected (PR only, no force push or delete).
+- Work on the checked-out branch (normally `develop`).
 - **Merge = deploy.** A push or merge into `develop` publishes the test site; merging into `master` publishes the live site. When a change also touches `apps-script/`, push and update that environment's deployment first: test first (`npm run push-test`, then the test deployment), then prod for a release (`npm run push-prod`, then the live deployment). See README → Deploy.
 
 ### Pull and Push
 - Before starting: `git checkout develop` and `git pull origin develop`. Commit or stash before pulling.
-- Commit and push to `develop` directly, or push a working branch under its own name and open a PR into `develop`. Release PRs go from `develop` into `master`. Never push directly to `master`; never force-push either branch.
+- Commit and push to `develop` directly. Release PRs go from `develop` into `master`. Never push directly to `master`; never force-push either branch.

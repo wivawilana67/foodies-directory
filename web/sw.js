@@ -17,6 +17,7 @@ const SHELL = [
   './place.js',
   './dishes.js',
   './add.js',
+  './photos.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',

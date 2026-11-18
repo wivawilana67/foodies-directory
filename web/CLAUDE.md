@@ -9,16 +9,17 @@ The phone app: a static PWA with no build step, served from GitHub Pages under a
 ```
 web/
 ├── CLAUDE.md               # This file (published to Pages with the rest of web/; it holds nothing secret)
-├── index.html              # One page: views #view-list, #view-place, #view-form, #view-add, #view-dish, #view-setup + bottom tab bar
+├── index.html              # One page: views #view-list, #view-place, #view-form, #view-add, #view-dish, #view-photos, #view-setup + bottom tab bar
 ├── styles.css              # Design tokens on :root (light + dark), layout, tab bar, cards, detail, dishes
-├── app.js                  # Entry: init, refresh, tabs, Near me, settings, install button, Back handling
+├── app.js                  # Entry: init, refresh, tabs, Near me, settings and theme, install button, Back handling
 ├── state.js                # Shared in-memory data + change hook (onChange / changed)
 ├── ui.js                   # DOM helpers, formatting, Maps link, copy / share / toast, show(view)
-├── list.js                 # All / Wishlist / Near me list: label chips, filters, score / distance sort, cards, Copy list
-├── place.js                # Place detail (Copy, Share), add / edit form incl. labels, update with conflict check
-├── dishes.js               # Dish list on the detail view, dish form, delete
+├── list.js                 # All / Wishlist / Near me list: label chips, filters, score / distance sort, cards with cover photo, Copy list
+├── place.js                # Place detail (Copy, Share, Photos), add / edit form incl. labels and suggestions, update with conflict check
+├── dishes.js               # Dish list on the detail view, dish form (with photos), delete
 ├── add.js                  # Add tab: lookup, results, manual add, Paste, Android share target
-├── api.js                  # call(action, data), settings + list cache in localStorage, IS_TEST (test copy under /test/)
+├── photos.js               # Place and dish photos: shrink to JPEG, upload, gallery, full-screen viewer, remove
+├── api.js                  # call(action, data), settings, theme and list cache in localStorage, IS_TEST (test copy under /test/)
 ├── geo.js                  # distanceKm (haversine), getPosition (Geolocation API)
 ├── sw.js                   # Service worker: network-first for own files, cache fallback offline
 ├── manifest.webmanifest    # name, icons, standalone display, share_target (Android)
@@ -26,7 +27,7 @@ web/
 └── icons/                  # icon-192.png, icon-512.png (also maskable), apple-touch-icon.png (180)
 ```
 
-Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`; `list` → `place`; `add` → `place`; `place` → `dishes`; all → `state`, `ui`, `api`. Cross-module re-rendering goes through `changed()` (list) and the `popstate` handler in `app.js` (detail view).
+Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`, `photos`; `list` → `place`, `photos`; `add` → `place`; `place` → `dishes`, `photos`; `dishes` → `photos`; all → `state`, `ui`, `api`. Cross-module re-rendering goes through `changed()` (list) and the `popstate` handler in `app.js` (detail view).
 
 ---
 
@@ -34,14 +35,15 @@ Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`; `list` →
 
 | File | Key functions / parts |
 |---|---|
-| `app.js` | `init` (sets `data-env="test"` and the "Foodies TEST" title on the test copy), `apply(data)`, `refresh`, `locate`, `selectTab`, `saveSetup`, `initInstall`, `onChange` handler (cache + re-render), `popstate` handler, Copy list wiring |
+| `app.js` | `init` (sets `data-env="test"` and the "Foodies TEST" title on the test copy), `apply(data)`, `refresh`, `locate`, `selectTab`, `saveSetup`, `initInstall`, `applyTheme`, `initTheme`, `onChange` handler (cache + re-render), `popstate` handler (re-renders the gallery for `photos`), Copy list wiring |
 | `state.js` | `state`, `onChange`, `changed`, `placeById`, `dishesOf`, `upsert` |
-| `ui.js` | `$`, `el`, `text`, `httpsUrl`, `areaOf`, `locationOf`, `labelsOf`, `coordsOf`, `formatKm`, `mapsHref`, `placeText`, `toast`, `copyText`, `canShare`, `sharePlace`, `show(view, push)` |
-| `list.js` | `renderFilters`, `renderLabelChips`, `renderList`, `placeCard` (with copy icon), `copyList`, `averageRank` (score rank = position in Master `rating`) |
-| `place.js` | `openPlace`, `renderPlace`, `openForm({place|google|manual})`, `save`, `update`, `formFields`, `choiceControl`, `labelsControl` |
-| `dishes.js` | `dishList`, `openDish`, `initDishes` (save, two-tap delete) |
+| `ui.js` | `$`, `el`, `text`, `httpsUrl`, `areaOf`, `locationOf`, `labelsOf`, `unique`, `coordsOf`, `formatKm`, `mapsHref`, `placeText`, `toast`, `copyText`, `canShare`, `sharePlace`, `show(view, push)` (`VIEWS` includes `photos`) |
+| `list.js` | `renderFilters`, `renderLabelChips`, `renderList`, `placeCard` (copy icon, cover thumbnail via `coverOf` / `photoImg`), `copyList`, `averageRank` (score rank = position in Master `rating`) |
+| `place.js` | `openPlace`, `renderPlace` (incl. the Photos section), `openForm({place|google|manual})`, `save`, `update`, `formFields` (kinds: text, url, choice, `suggest` = text + `<datalist>` of values used elsewhere, labels, rating, note, check), `choiceControl`, `labelsControl` |
+| `dishes.js` | `dishList`, `openDish`, `renderDishPhotos` (saved dishes only), `initDishes` (save, two-tap delete) |
 | `add.js` | `initAdd`, `lookup`, `resultCard`, `paste`, `addManual`, `readShare` |
-| `api.js` | `IS_TEST` (true when the path contains `/test/`), `call`, `getSettings`, `saveSettings`, `readCache`, `writeCache` |
+| `photos.js` | `MAX_PHOTOS`, `photoIdsOf`, `photoUrl` (`drive.google.com/thumbnail`, **Unverified**), `photoImg`, `coverOf`, `shrink` (canvas → JPEG, longest side 1600 px, quality 0.8), `upload`, `addPhotoButton`, `openGallery`, `renderGallery`, `openViewer` (two-tap Remove) |
+| `api.js` | `IS_TEST` (true when the path contains `/test/`), `call`, `getSettings`, `saveSettings`, `getTheme`, `saveTheme`, `readCache`, `writeCache` |
 | `geo.js` | `distanceKm`, `getPosition` |
 | `sw.js` | `SHELL` list (add every new file here), one cache per scope (`foodies-shell-<scope>`; `activate` deletes the old single `foodies-shell` cache), `install` / `activate` / `fetch` handlers (the live worker ignores requests under `test/`) |
 
@@ -54,6 +56,8 @@ Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`; `list` →
 | `add` | `place.js` `save` | `placeId` (or empty for manual), `fields` (every form field) |
 | `update` | `place.js` `update` | `id`, `changes` (changed fields only), `original` (their values when the form opened) |
 | `saveDish` / `deleteDish` | `dishes.js` | `dish{id?, place, name, price, liked, best, note}` / `id` |
+| `addPhoto` | `photos.js` `upload` | `target` (`place` or `dish`), `id`, `data` (base64 JPEG, shrunk) |
+| `deletePhoto` | `photos.js` `openViewer` | `target`, `id`, `photoId` |
 
 ### localStorage keys (per device)
 
@@ -64,6 +68,7 @@ The live app uses the `foodies.*` keys below. The test copy (`IS_TEST`) uses the
 | `foodies.backendUrl` (test: `foodies-test.backendUrl`) | Apps Script `/exec` URL (must match `https://script.google.com/macros/s/…/exec`) |
 | `foodies.token` (test: `foodies-test.token`) | Shared token |
 | `foodies.cache` (test: `foodies-test.cache`) | Last data `{places, dishes, options, people}` for offline / instant start; rewritten after every change |
+| `foodies.theme` (shared by both copies) | Theme choice: `system` (default), `light` or `dark`; an inline script in `index.html` `<head>` applies it before first paint |
 
 ---
 
@@ -82,6 +87,8 @@ The live app uses the `foodies.*` keys below. The test copy (`IS_TEST`) uses the
 | A link to open in Google Maps | `mapsHref(p)` (`Link Google`, else a Maps search) |
 | Switch view | `show(view, push)`; `push` adds a history entry so the phone's Back returns |
 | Update data and re-render lists | `upsert(state.places | state.dishes, item)` then `changed()` |
+| A record's photo IDs / a thumbnail `<img>` / the Add photo control | `photoIdsOf(record)` / `photoImg(id, width, className)` / `addPhotoButton(target, id, status, done)` |
+| Sorted unique values (filters, label chips, suggestions) | `unique(list)` (`ui.js`) |
 
 ---
 
@@ -90,7 +97,7 @@ The live app uses the `foodies.*` keys below. The test copy (`IS_TEST`) uses the
 - Vanilla ES modules, no framework, no CDN, no build. `node --check` each changed file.
 - Every storage access is wrapped in `try/catch` (private mode can block it); the app must still run without storage.
 - Place text goes into the DOM with `textContent`. Links from the sheet are used only when they start with `https://`.
-- Status lines (`#status`, `#place-status`, `#form-status`, `#add-status`, `#dish-status`, `#setup-status`, `#toast`) carry `role="status"`; touch targets are at least 44 px.
+- Status lines (`#status`, `#place-status`, `#form-status`, `#add-status`, `#dish-status`, `#setup-status`, `#photos-status`, `#viewer-status`, `#toast`) carry `role="status"`; touch targets are at least 44 px.
 - A control holding several buttons (the labels field) is wrapped in a `div`, not a `label`: a `label` forwards taps on its text to its first button.
 - No browser dialogs (`alert` / `confirm`): destructive actions use a second tap.
 - The phone never sends Google place data to save; it sends `placeId` and the user's own fields (`docs/decisions.md` D12).
@@ -107,8 +114,14 @@ The live app uses the `foodies.*` keys below. The test copy (`IS_TEST`) uses the
 - **Clipboard read** (`navigator.clipboard.readText`) may be refused; the fallback is a message asking for a manual paste.
 - **Clipboard write** (`copyText`) uses `navigator.clipboard.writeText`, falling back to a hidden textarea + `execCommand('copy')` (older iPhone Safari). Both need a real tap; a scripted click is refused.
 - **Share** uses the Web Share API (`navigator.share`, Android Chrome and iPhone Safari); the button is left out where the browser has no share menu. Cancelling the menu is not an error.
-- **Back button:** sub-views (place, form, dish, settings) are pushed with `history.pushState`; `popstate` re-renders the detail view and shows the previous view. Tabs replace the current entry.
-- **Service worker** is network-first, so a deploy reaches phones on their next online launch with no cache-version bump. New files must be added to `SHELL` to work offline.
+- **Back button:** sub-views (place, form, dish, photos, settings) are pushed with `history.pushState`; `popstate` re-renders the detail view and shows the previous view. Tabs replace the current entry. The full-screen photo viewer pushes its own entry, so Back closes it first.
+- **Photos on both phones:** the picker is a `label` wrapping `input type="file" accept="image/*" multiple`, so the camera or the library opens on Android and iPhone Safari. Not yet tested on real phones (**Unverified**).
+- **Photo URLs:** thumbnails and the viewer load `https://drive.google.com/thumbnail?id=…&sz=w<width>` (`photoUrl`). That URL is widely used but undocumented: **Unverified**; test on both phones.
+- **Photos are not offline:** they are cross-origin (Drive), so the service worker does not cache them. The rest of the app still works offline.
+- **Shrinking:** `shrink` draws the picture on a canvas (the browser applies the photo's rotation on decode), then sends JPEG, longest side 1600 px, quality 0.8, as base64. The backend refuses a photo over 1.5 MB.
+- **Suggestions (`suggest` fields):** Country, City and District are free text with a `<datalist>` of values already used. Behaviour of `<datalist>` on iPhone Safari is **Unverified**.
+- **Theme:** Settings → Theme (System / Light / Dark), stored per phone in `foodies.theme` and applied before first paint.
+- **Service worker** is network-first, so a deploy reaches phones on their next online launch with no cache-version bump. New files must be added to `SHELL` to work offline (`photos.js` is in `SHELL`).
 - **Backend URL and token** are entered on first launch (Settings view) and stored only in `localStorage`; never hardcode them.
 - **Test copy at `/test/`.** Same origin as the live app, but a separate app on the phone: its own `foodies-test.*` storage keys (`IS_TEST` in `api.js`) and its own service worker cache (`foodies-shell-<scope>`). The live worker ignores requests under `test/`. `app.js` sets `data-env="test"` on `<html>`, which turns the top bar sunflower (`--sun`, the yellow "Foodies TEST" bar). The workflow renames the test copy's manifest ("Foodies Directory TEST" / "Foodies TEST", via jq); the live manifest keeps its name. Both copies are installed separately.
 
@@ -117,9 +130,10 @@ The live app uses the `foodies.*` keys below. The test copy (`IS_TEST`) uses the
 ## 6. Design Preferences
 
 - **"Sticker" look** (owner's pick, 2026-11-16): every box has a 2 px ink outline (`--line`), rounded corners (14–18 px; chips and badges fully round) and a solid offset shadow (`--shadow`, `--shadow-big`); pressing a button shifts it into its shadow.
-- Tokens in `styles.css` `:root`: `--bg`, `--surface`, `--soft`, `--text`, `--muted`, `--line`, `--accent` (tomato), `--accent-text`, the pastel fills `--sun` (wishlist, toast, active tab, Install), `--mint` (tried), `--lilac` (labels) with `--on-pastel` text, `--body` / `--display` fonts. Dark mode follows `prefers-color-scheme` and redefines the tokens only; pastels keep dark text in both themes.
+- Tokens in `styles.css` `:root`: `--bg`, `--surface`, `--soft`, `--text`, `--muted`, `--line`, `--accent` (tomato), `--accent-text`, the pastel fills `--sun` (wishlist, toast, active tab, Install), `--mint` (tried), `--lilac` (labels) with `--on-pastel` text, `--body` / `--display` fonts.
+- **Theme** (Settings → Theme, key `foodies.theme`): System follows `prefers-color-scheme`; Light and Dark set `data-theme` on `<html>`. Dark tokens are defined twice in `styles.css`: under `@media (prefers-color-scheme: dark)` for `:root:not([data-theme="light"])`, and under `:root[data-theme="dark"]`. They redefine the tokens only; pastels keep dark text in both themes. `theme-color` follows the chosen theme.
 - Fonts are bundled (works offline, no Google request): Nunito for text, Fredoka for headings, Latin subset only, in `fonts/` with their SIL Open Font Licences; both are in `SHELL`. Other scripts fall back to the system font.
-- Single column, max 640 px, 16 px side gutter; sticky cream top bar (title, Install app, ⚙); fixed bottom tabs All · Wishlist · Near me · Add. `theme-color` follows light / dark.
+- Single column, max 640 px, 16 px side gutter; sticky cream top bar (title, Install app, ⚙); fixed bottom tabs All · Wishlist · Near me · Add.
 - English UI; the sheet's own labels (Tipe, Genre, Jenis) are kept.
 - Icon: cream plate on orange (`icons/`), motif kept inside the maskable safe zone.
 - `[hidden]` is forced to `display: none` so classes with `display` cannot reveal hidden elements.

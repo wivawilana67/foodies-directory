@@ -48,9 +48,24 @@ function checkColumns() {
     });
 }
 
-// For a "Food List" that already has data (a new column such as Labels, or the old sheet at migration):
-// appends every configured header that is missing, after the last column. Existing columns are untouched.
+// For tabs that already have data (a new column such as Photos, or the old sheet at migration): appends every
+// configured header missing from "Food List" and "Dishes", after the last column. Existing columns are untouched.
 function addMissingColumns() {
-  const added = appendHeaders_(openTab_(SHEET_NAME), headerList_(Object.assign(placeFields_(), APP_FIELDS)));
-  Logger.log('Added columns: %s', added.length ? added.join(', ') : 'none');
+  [[SHEET_NAME, Object.assign(placeFields_(), APP_FIELDS)], [DISHES_SHEET, DISH_FIELDS]].forEach(([name, fields]) => {
+    const added = appendHeaders_(openTab_(name), headerList_(fields));
+    Logger.log('%s: added %s', name, added.length ? added.join(', ') : 'none');
+  });
+}
+
+// Once, before the first photo: creates the "Foodies Photos - <sheet name>" Drive folder and stores its ID in PHOTO_FOLDER_ID.
+// The first run asks for Drive access.
+function setupPhotos() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty(PROP.photoFolder)) {
+    Logger.log('PHOTO_FOLDER_ID is already set');
+    return;
+  }
+  const name = 'Foodies Photos - ' + spreadsheet_().getName(); // live and test sheets get separate folders
+  props.setProperty(PROP.photoFolder, DriveApp.createFolder(name).getId());
+  Logger.log('Created the "%s" folder in your Drive', name);
 }

@@ -30,11 +30,11 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 │   ├── .clasp.example.json     # Template for the gitignored .clasp-prod.json and .clasp-test.json
 │   └── src/                    # Pushed to Apps Script as-is (clasp rootDir)
 │       ├── appsscript.json     # Manifest: V8, Asia/Jakarta, web app runs as owner
-│       └── *.js                # Api, Config, Sheet, Dishes, Places, MapsLink, Usage, Backfill, Setup
+│       └── *.js                # Api, Config, Sheet, Dishes, Photos, Places, MapsLink, Usage, Backfill, Setup
 └── web/                        # Front end (static PWA, no build step)
     ├── CLAUDE.md               # File map, conventions, platform rules  ← read before editing
-    ├── index.html, styles.css  # Single page: list, place, form, add, dish, settings views + bottom tabs
-    ├── *.js                    # ES modules: app, state, ui, list, place, dishes, add, api, geo
+    ├── index.html, styles.css  # Single page: list, place, form, add, dish, photos, settings views + bottom tabs
+    ├── *.js                    # ES modules: app, state, ui, list, place, dishes, add, photos, api, geo
     ├── sw.js                   # Service worker (network-first, offline fallback)
     ├── manifest.webmanifest    # Install metadata + Android share target
     ├── fonts/                  # Bundled Nunito + Fredoka (woff2) and their OFL licences
@@ -46,7 +46,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 | `/` (root) | Docs, tooling, npm scripts | Adding tooling, changing deploy scripts or repo-wide rules | This file, `README.md` |
 | `.github/` | Pages deploy workflow, Dependabot | Changing how or when the front end goes live | `secure-github-actions` rules; this file § 5 |
 | `docs/` | Decisions and cloud setup | A design decision is made or reversed; GCP setup changes | The file itself |
-| `apps-script/` | Backend | Sheet access, Places lookup, link parsing, spend limits, backfill, API actions | `apps-script/CLAUDE.md` |
+| `apps-script/` | Backend | Sheet access, Places lookup, link parsing, spend limits, backfill, API actions, photos | `apps-script/CLAUDE.md` |
 | `web/` | Phone UI | Anything the user sees or taps; install and share behaviour | `web/CLAUDE.md` |
 
 ### Where do I change…?
@@ -59,14 +59,17 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 | Labels (rules / chips / form) | `cleanLabels_` (`Sheet.js`) / `renderLabelChips` (`web/list.js`) / `labelsControl` (`web/place.js`) |
 | Copy and share text | `placeText`, `copyText`, `sharePlace` in `web/ui.js` |
 | Which Google fields are fetched (affects billing) | `PLACE_FIELDS` in `apps-script/src/Places.js` |
-| How a Maps link is understood | `apps-script/src/MapsLink.js` |
+| How a Maps or share.google link is understood | `apps-script/src/MapsLink.js` (`resolveShareLink_` for share.google) |
+| Language of place names and cities from Places | `PLACES_LANGUAGE` in `apps-script/src/Places.js` |
 | Daily / monthly lookup limits | Script Properties `DAILY_LIMIT` / `MONTHLY_LIMIT` (defaults in `Config.js`) |
 | A backend action the phone can call | `ACTIONS` in `apps-script/src/Api.js` + the matching `call('…')` in `web/app.js` |
 | Backfill behaviour | `apps-script/src/Backfill.js` |
+| Own photos: upload, remove, cover, limits | `apps-script/src/Photos.js` + `web/photos.js`; limits `MAX_PHOTOS` / `MAX_PHOTO_BYTES` in `Config.js` |
 | Tabs, filters, sort, near me, cards | `web/list.js` + `web/index.html`; tab switching in `web/app.js` (`selectTab`) |
 | Place detail and add / edit form | `web/place.js` |
 | Install button, iPhone hint, Back button | `web/app.js` (`initInstall`, `popstate`) |
 | Look and feel ("Sticker" style) | `web/styles.css` (tokens on `:root`), fonts in `web/fonts/` |
+| Theme (System / Light / Dark) | `web/styles.css` (dark tokens) + `applyTheme` / `initTheme` in `web/app.js` |
 | Install name, icon, share target | `web/manifest.webmanifest`, `web/icons/` |
 | Backend deploy targets or npm scripts | `apps-script/.clasp-*.json` (local only) / root `package.json` |
 | Front-end deploy | `.github/workflows/pages.yml` |
@@ -140,7 +143,7 @@ Use the `development-documentation` skill.
 - **Two backend targets: test and prod.**
   - **Test** = the second Apps Script project, bound to a copy of the sheet ("Foodies Directory TEST"; its `SPREADSHEET_ID` is the copy). `push-test`, editor runs in the test project and the test deployment touch only test data, and may be done when the task needs them.
   - **Prod** = the live Apps Script project on the live sheet. `push-prod`, editor runs in the live project and the live deployment touch live data; do them only when the owner asks in that request.
-- **Never committed (public repo):** `.clasp*.json` except the example (`.clasp-prod.json`, `.clasp-test.json`), script IDs (live and test), spreadsheet IDs (live and test), web app URLs (live and test), `API_TOKEN` (live and test), `PLACES_API_KEY`, the names in `PEOPLE`, the test token.
+- **Never committed (public repo):** `.clasp*.json` except the example (`.clasp-prod.json`, `.clasp-test.json`), script IDs (live and test), spreadsheet IDs (live and test), web app URLs (live and test), `API_TOKEN` (live and test), `PLACES_API_KEY`, the names in `PEOPLE`, the Drive photo folder IDs (`PHOTO_FOLDER_ID`, live and test).
 - **Backend: deploy only with the root npm scripts.** `npm run push-test` and `npm run push-prod` push code; `npm run pull-test` and `npm run pull-prod` pull it. A web app URL only serves new code after its owner updates that environment's existing deployment to a new version (README → Deploy).
 - **Front end: one Pages site, two copies.** `master` is live and publishes at the site root. `develop` is the test copy and publishes under `/test/`. A push to `master` or `develop` that touches `web/` (or the workflow) publishes through `.github/workflows/pages.yml`, which rebuilds the whole site. Nothing else deploys the front end.
 - **Backfill** runs from the Apps Script editor, only with the owner's go-ahead: take a backup first (File → Make a copy, or a named version in Version history), run one batch of 15 rows, check it, then the rest.

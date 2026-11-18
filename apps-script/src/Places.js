@@ -12,17 +12,18 @@ const PLACE_FIELDS = [
   'addressComponents',
   'googleMapsUri',
 ];
+const PLACES_LANGUAGE = 'en'; // Names and addresses in English, so cities are spelled one way (e.g. "South Tangerang")
 
 function getPlace_(placeId) {
   if (!/^[A-Za-z0-9_-]{10,300}$/.test(placeId)) throw new Error('Bad place ID');
   reserveQuota_();
-  return toPlace_(placesFetch_('places/' + placeId, 'get', PLACE_FIELDS.join(',')));
+  return toPlace_(placesFetch_('places/' + placeId + '?languageCode=' + PLACES_LANGUAGE, 'get', PLACE_FIELDS.join(',')));
 }
 
 // near: optional {lat, lng} used as a location bias (not a restriction).
 function searchText_(query, near, max) {
   reserveQuota_();
-  const payload = { textQuery: query, maxResultCount: max };
+  const payload = { textQuery: query, maxResultCount: max, languageCode: PLACES_LANGUAGE };
   if (near) payload.locationBias = { circle: { center: { latitude: near.lat, longitude: near.lng }, radius: 1000 } };
   const mask = PLACE_FIELDS.map((f) => 'places.' + f).join(',');
   return (placesFetch_('places:searchText', 'post', mask, payload).places || []).map(toPlace_);
@@ -48,7 +49,8 @@ function placesFetch_(path, method, fieldMask, payload) {
 }
 
 // Unverified: which address component holds the city and the district for Indonesian addresses.
-// The phone shows these as editable defaults, so a wrong guess is fixed before saving.
+// The phone shows these as editable defaults, so a wrong guess is fixed before saving. Lookups ask for English
+// (PLACES_LANGUAGE); whether Indonesian cities come back as e.g. "South Tangerang" is unverified.
 function toPlace_(p) {
   const parts = p.addressComponents || [];
   const part = (type) => (parts.find((c) => (c.types || []).indexOf(type) >= 0) || {}).longText || '';
@@ -88,15 +90,21 @@ function placeFromLink_(url, max) {
   return null;
 }
 
-// Phone "Add place": input is a pasted or shared text holding a Maps link, or a typed name.
+// Phone "Add place": input is a pasted or shared text holding a Maps or share.google link, or a typed name.
 function lookup_(body) {
   const input = String(body.input || '').trim().slice(0, 1000);
   if (!input) throw new Error('Paste a link or type a name');
   const url = extractUrl_(input);
   let places;
   if (url) {
-    if (!isMapsUrl_(url)) throw new Error('Only Google Maps links are supported');
-    places = placeFromLink_(url, 5);
+    if (isShareUrl_(url)) {
+      const shared = resolveShareLink_(url);
+      places = shared.mapsUrl ? placeFromLink_(shared.mapsUrl, 5) : searchText_(shared.name, null, 5);
+    } else if (isMapsUrl_(url)) {
+      places = placeFromLink_(url, 5);
+    } else {
+      throw new Error('Only Google Maps or share.google links are supported');
+    }
     if (!places) throw new Error('Could not read a place from that link');
   } else {
     places = searchText_(input, null, 5);

@@ -44,6 +44,7 @@ const APP_FIELDS = {
   googleCategory: 'Google Category',
   addedAt: 'Added At',
   lookupStatus: 'Lookup Status',
+  photos: 'Photos',
 };
 
 const DISH_FIELDS = {
@@ -56,6 +57,7 @@ const DISH_FIELDS = {
   best: 'Best',
   note: 'Note',
   addedAt: 'Added At',
+  photos: 'Photos',
 };
 
 // "Master" lists. The order of Ratings is the sort rank (last = best).
@@ -80,6 +82,7 @@ const PROP = {
   dailyLimit: 'DAILY_LIMIT',
   monthlyLimit: 'MONTHLY_LIMIT',
   usage: 'USAGE',
+  photoFolder: 'PHOTO_FOLDER_ID',
 };
 
 const DEFAULT_DAILY_LIMIT = 50;
@@ -87,6 +90,8 @@ const DEFAULT_MONTHLY_LIMIT = 900;
 const LOOKUP_CACHE_SECONDS = 600;
 const BACKFILL_BATCH = 15;
 const BACKFILL_TIME_BUDGET_MS = 4.5 * 60 * 1000;
+const MAX_PHOTOS = 5; // per place and per dish
+const MAX_PHOTO_BYTES = 1.5 * 1024 * 1024;
 
 function getProp_(key) {
   const value = PropertiesService.getScriptProperties().getProperty(key);

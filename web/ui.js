@@ -13,6 +13,7 @@ export const httpsUrl = (v) => (/^https:\/\//.test(text(v)) ? text(v) : '');
 export const areaOf = (p) => [p.district, p.city].map(text).filter(Boolean).join(', ');
 export const locationOf = (p) => [p.landmark, p.district, p.city, p.country].map(text).filter(Boolean).join(', ');
 export const labelsOf = (p) => text(p.labels).split(',').map((s) => s.trim()).filter(Boolean);
+export const unique = (list) => [...new Set(list.map(text).filter(Boolean))].sort((a, b) => a.localeCompare(b));
 
 export function coordsOf(p) {
   const lat = Number(p.lat);
@@ -69,7 +70,7 @@ export async function sharePlace(p) {
   }
 }
 
-const VIEWS = ['list', 'place', 'form', 'add', 'dish', 'setup'];
+const VIEWS = ['list', 'place', 'form', 'add', 'dish', 'photos', 'setup'];
 
 // Shows one view. push adds a history entry, so the phone's Back button returns to the previous view.
 export function show(view, push = false) {

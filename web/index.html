@@ -12,6 +12,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <script>try { const t = localStorage.getItem('foodies.theme'); if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; } catch {}</script>
   <link rel="stylesheet" href="styles.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -97,12 +98,29 @@
         </fieldset>
         <label class="check"><input id="dish-best" type="checkbox"> ⭐ Best dish here</label>
         <label>Note <textarea id="dish-note" rows="2" maxlength="300"></textarea></label>
+        <div id="dish-photos" class="fields"></div>
         <div class="row">
           <button type="submit" class="button primary">Save</button>
           <button id="dish-delete" type="button" class="button">Delete</button>
         </div>
       </form>
       <p id="dish-status" class="muted" role="status"></p>
+    </section>
+
+    <section id="view-photos" hidden>
+      <button type="button" class="link" data-back>← Back</button>
+      <h2 id="photos-title"></h2>
+      <div id="photos-body"></div>
+      <p id="photos-status" class="muted" role="status"></p>
+      <div id="photo-viewer" class="viewer" hidden>
+        <img id="viewer-img" alt="">
+        <p id="viewer-caption"></p>
+        <div class="row">
+          <button type="button" class="button" data-back>Close</button>
+          <button id="viewer-remove" type="button" class="button">Remove</button>
+        </div>
+        <p id="viewer-status" class="muted" role="status"></p>
+      </div>
     </section>
 
     <section id="view-setup" hidden>
@@ -113,6 +131,12 @@
         <label>Token <input id="setup-token" type="password" autocomplete="off"></label>
         <button type="submit" class="button primary">Save and check</button>
       </form>
+      <fieldset class="liked theme">
+        <legend>Theme</legend>
+        <label><input type="radio" name="theme" value="system"> System</label>
+        <label><input type="radio" name="theme" value="light"> Light</label>
+        <label><input type="radio" name="theme" value="dark"> Dark</label>
+      </fieldset>
       <p id="setup-status" class="muted" role="status"></p>
       <p id="ios-hint" class="muted" hidden>Optional: to get a home-screen icon, tap Share, then “Add to Home Screen”.</p>
     </section>

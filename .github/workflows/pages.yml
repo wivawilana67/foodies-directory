@@ -1,8 +1,10 @@
 name: Deploy web to GitHub Pages
 
+# One Pages site holds both apps: master (live) at the root and develop (test) under /test/.
+# A push to either branch rebuilds the whole site from both branches, so neither wipes the other.
 on:
   push:
-    branches: [master]
+    branches: [master, develop]
     paths:
       - 'web/**'
       - '.github/workflows/pages.yml'
@@ -18,14 +20,27 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: master
+          path: live
           persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: develop
+          path: test
+          persist-credentials: false
+      - name: Assemble the live site with the test copy under /test/
+        run: |
+          mkdir -p _site/test
+          cp -r live/web/. _site/
+          cp -r test/web/. _site/test/
+          jq '.name = "Foodies Directory TEST" | .short_name = "Foodies TEST"' test/web/manifest.webmanifest > _site/test/manifest.webmanifest
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: web
+          path: _site
 
   deploy:
     needs: build
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

@@ -1,6 +1,6 @@
 # web — Developer and Agent Guide
 
-The phone app: a static PWA with no build step, served from GitHub Pages under a sub-path (`/<repo>/`), so every path is **relative** (`./`, `icons/…`). Read first: root `CLAUDE.md`, root `README.md`, `docs/decisions.md`.
+The phone app: a static PWA with no build step, served from GitHub Pages under a sub-path: the live app at `/<repo>/` and the test copy at `/<repo>/test/` (same files, different branch). Every path is **relative** (`./`, `icons/…`). Read first: root `CLAUDE.md`, root `README.md`, `docs/decisions.md`.
 
 ---
 
@@ -18,7 +18,7 @@ web/
 ├── place.js                # Place detail (Copy, Share), add / edit form incl. labels, update with conflict check
 ├── dishes.js               # Dish list on the detail view, dish form, delete
 ├── add.js                  # Add tab: lookup, results, manual add, Paste, Android share target
-├── api.js                  # call(action, data), settings + list cache in localStorage
+├── api.js                  # call(action, data), settings + list cache in localStorage, IS_TEST (test copy under /test/)
 ├── geo.js                  # distanceKm (haversine), getPosition (Geolocation API)
 ├── sw.js                   # Service worker: network-first for own files, cache fallback offline
 ├── manifest.webmanifest    # name, icons, standalone display, share_target (Android)
@@ -34,16 +34,16 @@ Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`; `list` →
 
 | File | Key functions / parts |
 |---|---|
-| `app.js` | `init`, `apply(data)`, `refresh`, `locate`, `selectTab`, `saveSetup`, `initInstall`, `onChange` handler (cache + re-render), `popstate` handler, Copy list wiring |
+| `app.js` | `init` (sets `data-env="test"` and the "Foodies TEST" title on the test copy), `apply(data)`, `refresh`, `locate`, `selectTab`, `saveSetup`, `initInstall`, `onChange` handler (cache + re-render), `popstate` handler, Copy list wiring |
 | `state.js` | `state`, `onChange`, `changed`, `placeById`, `dishesOf`, `upsert` |
 | `ui.js` | `$`, `el`, `text`, `httpsUrl`, `areaOf`, `locationOf`, `labelsOf`, `coordsOf`, `formatKm`, `mapsHref`, `placeText`, `toast`, `copyText`, `canShare`, `sharePlace`, `show(view, push)` |
 | `list.js` | `renderFilters`, `renderLabelChips`, `renderList`, `placeCard` (with copy icon), `copyList`, `averageRank` (score rank = position in Master `rating`) |
 | `place.js` | `openPlace`, `renderPlace`, `openForm({place|google|manual})`, `save`, `update`, `formFields`, `choiceControl`, `labelsControl` |
 | `dishes.js` | `dishList`, `openDish`, `initDishes` (save, two-tap delete) |
 | `add.js` | `initAdd`, `lookup`, `resultCard`, `paste`, `addManual`, `readShare` |
-| `api.js` | `call`, `getSettings`, `saveSettings`, `readCache`, `writeCache` |
+| `api.js` | `IS_TEST` (true when the path contains `/test/`), `call`, `getSettings`, `saveSettings`, `readCache`, `writeCache` |
 | `geo.js` | `distanceKm`, `getPosition` |
-| `sw.js` | `SHELL` list (add every new file here), `install` / `activate` / `fetch` handlers |
+| `sw.js` | `SHELL` list (add every new file here), one cache per scope (`foodies-shell-<scope>`; `activate` deletes the old single `foodies-shell` cache), `install` / `activate` / `fetch` handlers (the live worker ignores requests under `test/`) |
 
 ### Backend calls
 
@@ -57,11 +57,13 @@ Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`; `list` →
 
 ### localStorage keys (per device)
 
+The live app uses the `foodies.*` keys below. The test copy (`IS_TEST`) uses the same keys with the prefix `foodies-test.*`, so the two never share a URL, token or cache on one phone.
+
 | Key | Holds |
 |---|---|
-| `foodies.backendUrl` | Apps Script `/exec` URL (must match `https://script.google.com/macros/s/…/exec`) |
-| `foodies.token` | Shared token |
-| `foodies.cache` | Last data `{places, dishes, options, people}` for offline / instant start; rewritten after every change |
+| `foodies.backendUrl` (test: `foodies-test.backendUrl`) | Apps Script `/exec` URL (must match `https://script.google.com/macros/s/…/exec`) |
+| `foodies.token` (test: `foodies-test.token`) | Shared token |
+| `foodies.cache` (test: `foodies-test.cache`) | Last data `{places, dishes, options, people}` for offline / instant start; rewritten after every change |
 
 ---
 
@@ -108,6 +110,7 @@ Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`; `list` →
 - **Back button:** sub-views (place, form, dish, settings) are pushed with `history.pushState`; `popstate` re-renders the detail view and shows the previous view. Tabs replace the current entry.
 - **Service worker** is network-first, so a deploy reaches phones on their next online launch with no cache-version bump. New files must be added to `SHELL` to work offline.
 - **Backend URL and token** are entered on first launch (Settings view) and stored only in `localStorage`; never hardcode them.
+- **Test copy at `/test/`.** Same origin as the live app, but a separate app on the phone: its own `foodies-test.*` storage keys (`IS_TEST` in `api.js`) and its own service worker cache (`foodies-shell-<scope>`). The live worker ignores requests under `test/`. `app.js` sets `data-env="test"` on `<html>`, which turns the top bar sunflower (`--sun`, the yellow "Foodies TEST" bar). The workflow renames the test copy's manifest ("Foodies Directory TEST" / "Foodies TEST", via jq); the live manifest keeps its name. Both copies are installed separately.
 
 ---
 
@@ -125,5 +128,6 @@ Module graph (no cycles): `app` → `list`, `place`, `dishes`, `add`; `list` →
 
 ## 7. Deploy Notes
 
-- `master` is prod. A push to `master` that touches `web/**` runs `.github/workflows/pages.yml`, which uploads `web/` as-is and deploys it to GitHub Pages (source: GitHub Actions). It can also be run by hand (Actions → Run workflow); the deploy job runs only on `master`.
+- `master` is live: its `web/` publishes at the site root. `develop` is the test copy: its `web/` publishes under `/test/`. A push to `master` or `develop` that touches `web/**` or the workflow runs `.github/workflows/pages.yml`. Each run checks out both branches, uploads `master`'s `web/` at the root and `develop`'s `web/` under `/test/` (manifest renamed by jq), and deploys the one site to GitHub Pages (source: GitHub Actions). Both copies are rebuilt on every run. It can also be run by hand (Actions → Run workflow); the deploy job runs only for `master` or `develop`, and the `github-pages` environment allows exactly those two branches.
+- Caveat: until this workflow is on `master` (the first release after it), a push to `master` runs the old workflow, which publishes only the root and drops `/test/`.
 - Keep this file current (root `CLAUDE.md` § 4).

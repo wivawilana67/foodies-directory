@@ -1,7 +1,10 @@
 // Backend calls and on-device storage. The backend URL and token are entered on each phone and
 // stored only in this browser; they never go into the repo.
 
-const KEYS = { url: 'foodies.backendUrl', token: 'foodies.token', cache: 'foodies.cache' };
+// The test copy of the app lives under /test/ on the same site; it keeps its own settings and cache.
+export const IS_TEST = location.pathname.includes('/test/');
+const PREFIX = IS_TEST ? 'foodies-test.' : 'foodies.';
+const KEYS = { url: `${PREFIX}backendUrl`, token: `${PREFIX}token`, cache: `${PREFIX}cache` };
 const BACKEND_PATTERN = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/;
 
 function read(key) {

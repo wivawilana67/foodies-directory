@@ -5,7 +5,9 @@
   "description": "Phone-friendly directory for the Foodies Checklist Google Sheet",
   "scripts": {
     "push-prod": "cd apps-script && copy .clasp-prod.json .clasp.json && npx clasp push -f",
-    "pull-prod": "cd apps-script && copy .clasp-prod.json .clasp.json && npx clasp pull"
+    "pull-prod": "cd apps-script && copy .clasp-prod.json .clasp.json && npx clasp pull",
+    "push-test": "cd apps-script && copy .clasp-test.json .clasp.json && npx clasp push -f",
+    "pull-test": "cd apps-script && copy .clasp-test.json .clasp.json && npx clasp pull"
   },
   "devDependencies": {
     "@google/clasp": "^3.3.0",

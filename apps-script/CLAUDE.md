@@ -1,6 +1,6 @@
 # apps-script — Developer and Agent Guide
 
-The backend: one Apps Script project (prod; there is no dev environment), deployed as a web app that **runs as the owner** and accepts anonymous requests, which are rejected unless they carry the shared token. It opens the spreadsheet by ID (Script Property `SPREADSHEET_ID`) rather than `getActiveSpreadsheet()`, so the code does not depend on how the project is attached.
+The backend: the same code in two Apps Script projects, **prod** (live, on the live sheet) and **test** (bound to a copy of the sheet), each deployed as a web app that **runs as the owner** and accepts anonymous requests, which are rejected unless they carry that project's shared token. Each project opens its spreadsheet by ID (Script Property `SPREADSHEET_ID`) rather than `getActiveSpreadsheet()`, so the code does not depend on how the project is attached.
 
 Bound-project caveat: if the project is bound to the sheet, anyone with edit access to the sheet can open Extensions → Apps Script and read the code and Script Properties (API key, token).
 
@@ -13,7 +13,7 @@ Read first: root `CLAUDE.md` (style, workflow, git), root `README.md` (Business 
 ```
 apps-script/
 ├── CLAUDE.md               # This file
-├── .clasp.example.json     # Copy to .clasp-prod.json (gitignored) and set scriptId
+├── .clasp.example.json     # Copy to .clasp-prod.json or .clasp-test.json (gitignored) and set scriptId
 └── src/                    # clasp rootDir: everything here is pushed
     ├── appsscript.json     # V8, Asia/Jakarta, STACKDRIVER logging, webapp executeAs USER_DEPLOYING / ANYONE_ANONYMOUS
     ├── Config.js           # Tab names, header maps (placeFields_, APP_FIELDS, DISH_FIELDS, MASTER_FIELDS), Script Property names, limits, getProp_, people_
@@ -60,10 +60,12 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 |---|---|---|
 | `PLACES_API_KEY` | yes | Places API (New) key |
 | `API_TOKEN` | yes | Shared token the phones send (random, 32+ characters) |
-| `SPREADSHEET_ID` | yes | ID of the spreadsheet holding "Food List", "Dishes", "Master" |
+| `SPREADSHEET_ID` | yes | ID of the spreadsheet holding "Food List", "Dishes", "Master" (prod: the live sheet; test: the sheet copy) |
 | `PEOPLE` | yes | The two names, comma-separated; build the `Rating (<name>)` / `Review (<name>)` headers and the phone labels. Kept out of the public repo |
 | `DAILY_LIMIT` / `MONTHLY_LIMIT` | no | Lookup caps; default 50 / 900 (`Config.js`) |
 | `USAGE` | written by code | `{day, dayCount, month, monthCount}` |
+
+The test project has its own set of these: `SPREADSHEET_ID` of the sheet copy, a new `API_TOKEN` (not the prod token), `PEOPLE` and `PLACES_API_KEY` as in prod, and lower limits `DAILY_LIMIT` 10 / `MONTHLY_LIMIT` 100. Each project counts spend in its own `USAGE`, so the combined ceiling is prod + test. Whether a copied spreadsheet carries Script Properties is **Unverified**; set them all.
 
 ---
 
@@ -150,8 +152,9 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 
 ## 6. Deploy and Maintenance Notes
 
-- `npm run push-prod` copies `.clasp-prod.json` to `.clasp.json` and runs `clasp push -f`, which replaces every file in the project.
-- After a push, update the **existing** deployment (Deploy → Manage deployments → edit → New version) so the `/exec` URL stays the same on both phones. A new deployment means a new URL to re-enter on each phone.
-- First run on a new spreadsheet: set Script Properties (incl. `PEOPLE`) → `setupSheet` → fill Master → `checkColumns` → deploy.
-- After a release that adds a "Food List" column (e.g. `Labels`) to a sheet that already has rows: run `addMissingColumns`, then `checkColumns`.
+- Two targets, same code. `npm run push-test` / `npm run pull-test` use the local `.clasp-test.json` (test project); `npm run push-prod` / `npm run pull-prod` use `.clasp-prod.json` (live project). Each copies its file to `.clasp.json` and runs `clasp push -f` (push) or `clasp pull` (pull). A push replaces every file in that project; `pull` overwrites local files.
+- Test first: push to test, run the test editor functions, and update the test deployment. Prod only when the owner asks in that request.
+- After a push, update that project's **existing** deployment (Deploy → Manage deployments → edit → New version) so its `/exec` URL stays the same. The test deployment is updated the same way; its URL goes only into the test copy's phone Settings. A new deployment means a new URL to re-enter on each phone.
+- First run on a new spreadsheet: set Script Properties (incl. `PEOPLE`) → `setupSheet` → fill Master → `checkColumns` → deploy. A test copy of a sheet with data: set its Script Properties (§ 2.3) → `addMissingColumns` → `checkColumns` → deploy.
+- After a release that adds a "Food List" column (e.g. `Labels`) to a sheet that already has rows: run `addMissingColumns`, then `checkColumns`, in each project.
 - Keep this file current (root `CLAUDE.md` § 4).

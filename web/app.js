@@ -1,6 +1,6 @@
 // Entry point: loads the list, wires the bottom tabs, Near me, settings and install, and the Back button.
 
-import { call, getSettings, saveSettings, readCache, writeCache } from './api.js';
+import { call, getSettings, saveSettings, readCache, writeCache, IS_TEST } from './api.js';
 import { getPosition } from './geo.js';
 import { state, onChange, changed } from './state.js';
 import { $, show } from './ui.js';
@@ -105,6 +105,10 @@ function initInstall() {
 }
 
 function init() {
+  if (IS_TEST) {
+    document.documentElement.dataset.env = 'test';
+    document.querySelector('.topbar h1').textContent = 'Foodies TEST';
+  }
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
   document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => selectTab(b.dataset.tab)));
   document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => history.back()));

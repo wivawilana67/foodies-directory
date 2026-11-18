@@ -18,8 +18,8 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 ├── package.json                # Only dependency (clasp) + npm deploy scripts
 ├── .gitignore                  # node_modules/, every real .clasp*.json, local Claude settings
 ├── .github/
-│   ├── workflows/pages.yml     # Publishes web/ to GitHub Pages on every push to master
-│   └── dependabot.yml          # Weekly bumps of the SHA-pinned actions (PRs into master)
+│   ├── workflows/pages.yml     # Publishes web/ to GitHub Pages on every push to master (root) or develop (/test/)
+│   └── dependabot.yml          # Weekly bumps of the SHA-pinned actions (PRs into develop)
 ├── .claude/skills/
 │   └── development-documentation/   # Keeps the docs in sync with every code change
 ├── docs/
@@ -27,7 +27,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 │   └── gcp-setup.md            # Google Cloud setup: verified vs open items, quota plan
 ├── apps-script/                # Backend (Apps Script, deployed with clasp)
 │   ├── CLAUDE.md               # File map, helpers, conventions, domain rules  ← read before editing
-│   ├── .clasp.example.json     # Template for the gitignored .clasp-prod.json
+│   ├── .clasp.example.json     # Template for the gitignored .clasp-prod.json and .clasp-test.json
 │   └── src/                    # Pushed to Apps Script as-is (clasp rootDir)
 │       ├── appsscript.json     # Manifest: V8, Asia/Jakarta, web app runs as owner
 │       └── *.js                # Api, Config, Sheet, Dishes, Places, MapsLink, Usage, Backfill, Setup
@@ -70,6 +70,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 | Install name, icon, share target | `web/manifest.webmanifest`, `web/icons/` |
 | Backend deploy targets or npm scripts | `apps-script/.clasp-*.json` (local only) / root `package.json` |
 | Front-end deploy | `.github/workflows/pages.yml` |
+| Test environment (site path, storage prefix, banner) | `.github/workflows/pages.yml`, `IS_TEST` in `web/api.js`, `apps-script/.clasp-test.json` (local) + `push-test` |
 
 ---
 
@@ -136,10 +137,12 @@ Use the `development-documentation` skill.
 
 ## 5. Environments & Data Safety
 
-- **One backend target: prod.** There is no dev environment. The script works on the live spreadsheet in `SPREADSHEET_ID` (a new sheet; the old "Foodies Checklist" is migrated later), so every push, deploy and editor run touches live data. Do any of them only when the owner asks in that request.
-- **Never committed (public repo):** `.clasp*.json` except the example, script IDs, the spreadsheet ID, the web app URL, `API_TOKEN`, `PLACES_API_KEY`, the names in `PEOPLE`.
-- **Backend: deploy only with the root npm scripts.** `npm run push-prod` pushes code; the web app URL only serves the new code after the owner updates the existing deployment to a new version (README → Deploy).
-- **Front end: `master` is prod.** Every push to `master` that touches `web/` publishes it through `.github/workflows/pages.yml`. Nothing else deploys the front end.
+- **Two backend targets: test and prod.**
+  - **Test** = the second Apps Script project, bound to a copy of the sheet ("Foodies Directory TEST"; its `SPREADSHEET_ID` is the copy). `push-test`, editor runs in the test project and the test deployment touch only test data, and may be done when the task needs them.
+  - **Prod** = the live Apps Script project on the live sheet. `push-prod`, editor runs in the live project and the live deployment touch live data; do them only when the owner asks in that request.
+- **Never committed (public repo):** `.clasp*.json` except the example (`.clasp-prod.json`, `.clasp-test.json`), script IDs (live and test), spreadsheet IDs (live and test), web app URLs (live and test), `API_TOKEN` (live and test), `PLACES_API_KEY`, the names in `PEOPLE`, the test token.
+- **Backend: deploy only with the root npm scripts.** `npm run push-test` and `npm run push-prod` push code; `npm run pull-test` and `npm run pull-prod` pull it. A web app URL only serves new code after its owner updates that environment's existing deployment to a new version (README → Deploy).
+- **Front end: one Pages site, two copies.** `master` is live and publishes at the site root. `develop` is the test copy and publishes under `/test/`. A push to `master` or `develop` that touches `web/` (or the workflow) publishes through `.github/workflows/pages.yml`, which rebuilds the whole site. Nothing else deploys the front end.
 - **Backfill** runs from the Apps Script editor, only with the owner's go-ahead: take a backup first (File → Make a copy, or a named version in Version history), run one batch of 15 rows, check it, then the rest.
 - **`clasp pull` overwrites local files.** Commit first.
 
@@ -150,11 +153,13 @@ Use the `development-documentation` skill.
 - Follow `.gitignore`. Review modified and untracked files before staging. Commit doc updates with the code they describe.
 
 ### Branching Model
-- Only one long-lived branch: **`master`**. It is the GitHub default branch, the base of every PR, and **prod**: merging into it publishes `web/` to GitHub Pages via `.github/workflows/pages.yml`.
-- Short-lived `fix/*`, `feat/*`, `chore/*` branches start from `master` and merge back into `master` by PR.
+- Two long-lived branches:
+  - **`develop`**: the GitHub default branch and the **test** environment; work is committed to it directly (feature branches are optional). Every push to it publishes the test copy of `web/` under `/test/`.
+  - **`master`**: **prod** (live). Merging into it publishes `web/` at the site root. Both are published by `.github/workflows/pages.yml`.
+- Optional short-lived `feat/*`, `fix/*`, `chore/*` branches start from `develop` and PR into `develop`. A release is a PR `develop` → `master`; `master` is protected (PR only, no force push or delete).
 - Work on the checked-out branch. Create a branch or worktree only when the owner asks.
-- **Merge = deploy.** When a change also touches `apps-script/`, merge only after the backend is pushed (`npm run push-prod`) and the deployment is updated (README → Deploy).
+- **Merge = deploy.** A push or merge into `develop` publishes the test site; merging into `master` publishes the live site. When a change also touches `apps-script/`, push and update that environment's deployment first: test first (`npm run push-test`, then the test deployment), then prod for a release (`npm run push-prod`, then the live deployment). See README → Deploy.
 
 ### Pull and Push
-- Before starting: `git checkout master` and `git pull origin master`. Commit or stash before pulling.
-- Push working branches under their own name and open PRs into `master`. Never push directly to, or force-push, `master`.
+- Before starting: `git checkout develop` and `git pull origin develop`. Commit or stash before pulling.
+- Commit and push to `develop` directly, or push a working branch under its own name and open a PR into `develop`. Release PRs go from `develop` into `master`. Never push directly to `master`; never force-push either branch.

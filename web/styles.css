@@ -78,6 +78,9 @@ h2 { margin: 4px 0; font-size: 1.45rem; line-height: 1.2; }
 
 .topbar h1 { margin: 0; font-size: 1.5rem; }
 
+/* The test copy (/test/) gets a sunflower top bar so it is never mistaken for the live app. */
+[data-env="test"] .topbar { background: var(--sun); color: var(--on-pastel); }
+
 .topbar-button {
   min-width: 44px;
   min-height: 44px;

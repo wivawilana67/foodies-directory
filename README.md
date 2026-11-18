@@ -25,8 +25,8 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 ## Tech Stack & Constraints
 
 - Google Sheets (database), Apps Script V8 (backend), Places API (New) — SearchText and GetPlace only.
-- Vanilla HTML/CSS/JS PWA, no build step, hosted on GitHub Pages and published from `master` by a GitHub Actions workflow.
-- Branches: `master` is the only long-lived branch: the default branch, the base of every PR, and prod (merging publishes the front end).
+- Vanilla HTML/CSS/JS PWA, no build step, hosted on GitHub Pages and published by a GitHub Actions workflow: `master` at the site root (live), `develop` under `/test/` (test).
+- Branches: `develop` is the default branch and the test environment: work is committed to it directly, and every push publishes the test copy. `master` is prod (merging publishes the live app). A release is a PR `develop` → `master`.
 - `clasp` (root `package.json`) is the only dependency.
 - The repo is public: secrets, IDs and URLs live in Script Properties or on each phone, never in git.
 
@@ -92,7 +92,8 @@ flowchart LR
 **"Dishes":** Dish ID, App ID, UniqueName, Dish, Price, Liked, Best, Note, Added At. **"Master":** Ratings, Tipe Foodies, Genre Foodies, Jenis Foodies.
 
 **Script Properties:** `PLACES_API_KEY`, `API_TOKEN`, `SPREADSHEET_ID`, `PEOPLE`, optional `DAILY_LIMIT` (50) / `MONTHLY_LIMIT` (900), and `USAGE` (written by code).
-**On each phone (localStorage):** backend URL, token, last list (places, dishes, Master lists, names).
+**On each phone (localStorage):** backend URL, token, last list (places, dishes, Master lists, names). The test copy keeps its own copies under `foodies-test.*` keys.
+Prod and test each have their own Script Properties, spreadsheet and Places usage counter.
 
 ---
 
@@ -100,20 +101,20 @@ flowchart LR
 
 ### Where the IDs and secrets live (never in git)
 
-There is one environment (no dev copy): the Apps Script project in `.clasp-prod.json`, working on the spreadsheet in `SPREADSHEET_ID`. Work happens in a new spreadsheet; the old "Foodies Checklist" is migrated later.
+There are two environments. **Prod** is the Apps Script project in `.clasp-prod.json`, working on the live spreadsheet in its `SPREADSHEET_ID`. **Test** is a second Apps Script project in `.clasp-test.json`, bound to a copy of that spreadsheet (see Test environment below). Work happens in a new spreadsheet; the old "Foodies Checklist" is migrated later.
 
 | Value | Where | Committed? |
 |---|---|---|
-| Apps Script ID | `apps-script/.clasp-prod.json` → `scriptId` | No — gitignored; only `.clasp.example.json` is committed |
-| Sheet ID | Script Property `SPREADSHEET_ID` | No — stored in Apps Script |
-| Places API key, token | Script Properties `PLACES_API_KEY`, `API_TOKEN` | No |
-| Web app `/exec` URL | Entered on each phone (Settings) | No |
+| Apps Script ID (prod, test) | `apps-script/.clasp-prod.json`, `apps-script/.clasp-test.json` → `scriptId` | No — gitignored; only `.clasp.example.json` is committed |
+| Sheet ID (prod, test) | Script Property `SPREADSHEET_ID` of each project | No — stored in Apps Script |
+| Places API key, token (each project has its own token) | Script Properties `PLACES_API_KEY`, `API_TOKEN` | No |
+| Web app `/exec` URLs (prod, test) | Entered on each phone (Settings) | No |
 
 Keep a copy of each in your password manager so a new laptop or phone can be set up again.
 
 ### Backend
 1. `npm install` in the repo root, then `npx clasp login`.
-2. Take a backup of the sheet if it holds data (File → Make a copy, or name a version in Version history). There is no dev copy, so everything below runs on live data.
+2. Take a backup of the sheet if it holds data (File → Make a copy, or name a version in Version history). Steps 3–8 run on the live project and sheet.
 3. In the Apps Script editor, Project Settings → IDs → copy the **Script ID**. Copy `apps-script/.clasp.example.json` to `apps-script/.clasp-prod.json` and paste the Script ID. The file is gitignored.
 4. `npm run push-prod`. The push replaces every file in the project.
 5. In the editor → Project Settings → Script Properties, add `PLACES_API_KEY`, `API_TOKEN` (32+ random characters, e.g. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`), `SPREADSHEET_ID` (from the sheet URL) and `PEOPLE` (the two names, comma-separated, as they should appear in the Rating / Review headers).
@@ -122,21 +123,32 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 8. Deploy → New deployment → Web app, execute as **Me**, access **Anyone**. Copy the `/exec` URL to your password manager. Opening it in a browser only shows `{"ok":true}`; the app talks to it with POST.
 
 ### Front end
-1. Push this repo to GitHub (public), `master` only.
-2. GitHub → Settings → General → Default branch → `master`.
+1. Push this repo to GitHub (public), with `master` and `develop` branches.
+2. GitHub → Settings → General → Default branch → `develop`.
 3. GitHub → Settings → Pages → Source: **GitHub Actions**.
-4. GitHub → Settings → Environments → `github-pages` → Deployment branches: allow `master` (it is the default branch, so by default only `master` may deploy).
-5. Recommended: protect `master` (Settings → Branches) so it changes only through PRs.
-6. Merging a PR into `master` publishes `web/`; the "Deploy web to GitHub Pages" workflow runs.
+4. GitHub → Settings → Environments → `github-pages` → Deployment branches: allow exactly `develop` and `master`.
+5. Protect `master` (Settings → Branches): PR required (0 approvals), applies to admins, no force push or delete. `develop` stays open for direct commits.
+6. A push or merge into `develop` publishes the test copy under `/test/`; merging into `master` publishes the live app at the site root. Either push rebuilds the whole site from both branches, and the "Deploy web to GitHub Pages" workflow runs.
+   Caveat: until the workflow is on `master` (the first release after it), a push to `master` runs the old workflow, which drops `/test/`.
+
+### Test environment (once)
+1. Live spreadsheet → File → Make a copy → name it "Foodies Directory TEST". The copy holds the data and the bound script.
+2. In the copy: Extensions → Apps Script → Project Settings → Script ID. Copy `apps-script/.clasp.example.json` to `apps-script/.clasp-test.json` and paste the ID (gitignored).
+3. In the test project's Script Properties, set `SPREADSHEET_ID` (the copy's ID), a new `API_TOKEN`, `PEOPLE` (same as prod), `PLACES_API_KEY` (same key as prod), `DAILY_LIMIT` = 10 and `MONTHLY_LIMIT` = 100. Each project counts spend separately, so the combined ceiling is prod + test. Whether a copied spreadsheet carries Script Properties is **Unverified**, so set them all.
+4. `npm run push-test`. In the test editor run `setupSheet` only if the copy is empty; otherwise run `addMissingColumns`, then `checkColumns`. Then run `setupPhotos` when the code has photos.
+5. Deploy → New deployment → Web app, execute as **Me**, access **Anyone**. Keep the test `/exec` URL in the password manager.
+6. On each phone, open `https://<user>.github.io/foodies-directory/test/`, then enter the test URL and token in Settings. The yellow "Foodies TEST" bar shows you are on the test copy.
 
 ### Deploy changes
-- Backend: `npm run push-prod`, then Deploy → Manage deployments → edit the existing deployment → New version. The URL stays the same.
-- Front end: open a PR into `master` and merge it; the workflow deploys automatically. If the PR also changes the backend, push and update the backend deployment first.
+- Backend: test first, then prod. `npm run push-test`, then Deploy → Manage deployments → edit the existing test deployment → New version. For a release, `npm run push-prod`, then the same on the live deployment. The URLs stay the same.
+- Front end: commit and push to `develop` (or merge a PR into it); the test site updates under `/test/`. Release by opening a PR from `develop` into `master` and merging it; the live site updates.
+- Day to day: work on `develop`. If the change touches `apps-script/`, run `npm run push-test` and update the test deployment → push `develop` (test site updates) → try it on both phones. Release: take a backup, `npm run push-prod`, update the live deployment, then PR `develop` → `master` and merge (live site updates).
 
 ## Install on the phones
 
 - **Android (Chrome):** open the GitHub Pages URL → tap **Install app** in the top bar (or Chrome menu → Install app). Open it, enter the backend URL and token in Settings. "Foodies" now appears in the Share menu of Google Maps.
 - **iPhone (Safari):** open the URL and enter the backend URL and token; everything works in Safari. Optional: Share → **Add to Home Screen** for an icon. To add a place, copy the Maps link and use **Paste** in Add.
+- **Test copy:** `https://<user>.github.io/foodies-directory/test/` is a separate app with its own settings (test URL and token), storage and cache. It is installed and used separately from the live app: on Android, Install app from the test page; on iPhone, Add to Home Screen from the test page. Use it to try changes before they go live.
 
 ## Keeping This README Current
 

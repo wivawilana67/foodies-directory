@@ -14,6 +14,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 ```
 /
 ├── CLAUDE.md                   # This file: coding style, folder map, workflow, git rules
+├── AGENTS.md                   # Points other AI agents to CLAUDE.md (also in apps-script/ and web/)
 ├── README.md                   # Human overview: setup, deploy, install, Business Flow, Data Flow
 ├── package.json                # Only dependency (clasp) + npm deploy scripts
 ├── .gitignore                  # node_modules/, every real .clasp*.json, local Claude settings

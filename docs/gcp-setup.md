@@ -20,11 +20,27 @@ State as of the handoff summary, session 2 (2026-11-14). "Verified" means seen i
 
 The rest of the list was not seen. SearchTextRequest per day is assumed to exist.
 
+- Budget "Foodies Budget" (seen 2026-11-21): monthly, Rp 50,000, applies to the whole billing account, alerts at 50%, 90% and 100%; spend cap status "Not applicable".
+- "Budgets & caps" offers real spend caps on projects and services, not just alerts: a cap pauses those services when exceeded and resets at the start of each month (page text, seen 2026-11-21).
+
+## Replatform: dev environment (set up 2026-11-21, from the owner's Cloud Shell output)
+
+The project ID and site address are kept out of this public file.
+
+- Neon project "foodies-directory" (AWS Singapore), database `foodies`, branches `production` and `dev`; role `app_dev` on `dev`.
+- Google Cloud project "Foodies Directory Dev", linked to the open billing account (same budget as above); Firebase added (Blaze); default Hosting site exists.
+- APIs enabled: Cloud Run, Artifact Registry, Secret Manager, IAM Credentials, STS, Firebase Hosting, Cloud Resource Manager.
+- Artifact Registry Docker repository `foodies` in `asia-southeast1`.
+- Service accounts `api-runtime` (no project roles; reads the two secrets) and `deployer` (`run.admin`, `artifactregistry.writer`, `firebasehosting.admin`, `serviceAccountUser` on `api-runtime`).
+- Secrets `DATABASE_URL` (Neon `dev`, pooled, `app_dev`) and `DJANGO_SECRET_KEY`, version 1 each.
+- Workload Identity pool `github`, provider `github-repo`, condition: this repository and `refs/heads/develop` only; `deployer` grants `workloadIdentityUser` to the repository.
+- GitHub: environment `dev` (branch `develop`) with `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `DEPLOYER_SA`; repository variable `CLOUD_DEPLOY=on`.
+- Not checked: the secrets' IAM bindings and the provider's `ACTIVE` state were not seen in output.
+
 ## Open
 
-- [ ] Budget alert (~Rp 50,000, thresholds 50/90/100%) saved?
 - [ ] API key edit page: **Save** clicked?
-- [ ] Does "Budgets & caps" offer a real spending cap, not just alerts?
+- [ ] Spend cap: decide whether to add one to the new dev and prod projects (replatform); whether a cap can be set on a billing-account budget is **Unverified**.
 - [ ] API key stored in a password manager?
 - [ ] Quota caps — deliberately skipped by the owner for now (see below).
 

@@ -54,4 +54,4 @@ Time zone `Asia/Jakarta`; logs go to stdout (Cloud Logging on Cloud Run). Never 
 
 ## 6. Deploy
 
-`.github/workflows/api.yml`: tests on every PR and push touching `api/`. When the repository variable `CLOUD_DEPLOY` is `on`, a push to `develop` deploys the image to the **test** project and `master` to **prod** (GitHub environments `test` / `prod`, Workload Identity Federation, service `foodies-api`, runtime service account `api-runtime`). Keep this file current (root `CLAUDE.md` § 4).
+`.github/workflows/api.yml`: tests on every PR and push touching `api/`. When the repository variable `CLOUD_DEPLOY` is `on`, a push to `develop` deploys the image to the **dev** project and `master` to **prod** (GitHub environments `dev` / `prod`, Workload Identity Federation, service `foodies-api`, runtime service account `api-runtime`). Keep this file current (root `CLAUDE.md` § 4).

@@ -24,8 +24,8 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 ├── .gitignore                  # node_modules/, every real .clasp*.json, .env*, frontend/dist, .firebaserc, local Claude settings
 ├── .github/
 │   ├── workflows/pages.yml     # Publishes web/ to GitHub Pages on every push to master (root) or develop (/test/)
-│   ├── workflows/api.yml       # api/: tests in the image; deploys to Cloud Run (develop → test, master → prod) when CLOUD_DEPLOY is on
-│   ├── workflows/frontend.yml  # frontend/: build; deploys to Firebase Hosting (develop → test, master → prod) when CLOUD_DEPLOY is on
+│   ├── workflows/api.yml       # api/: tests in the image; deploys to Cloud Run (develop → dev, master → prod) when CLOUD_DEPLOY is on
+│   ├── workflows/frontend.yml  # frontend/: build; deploys to Firebase Hosting (develop → dev, master → prod) when CLOUD_DEPLOY is on
 │   └── dependabot.yml          # Weekly bumps of the SHA-pinned actions (PRs into develop)
 ├── .claude/skills/
 │   └── development-documentation/   # Keeps the docs in sync with every code change
@@ -88,7 +88,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 | Front-end deploy | `.github/workflows/pages.yml` |
 | New stack: local dev containers | `docker-compose.yml` |
 | New stack: API endpoints / settings / image | `api/config/`, `api/foodies/`, `api/Dockerfile` |
-| New stack: deploy (Cloud Run, Firebase Hosting) | `.github/workflows/api.yml`, `.github/workflows/frontend.yml`, `firebase.json`; GitHub environment variables `test` / `prod` |
+| New stack: deploy (Cloud Run, Firebase Hosting) | `.github/workflows/api.yml`, `.github/workflows/frontend.yml`, `firebase.json`; GitHub environment variables `dev` / `prod` |
 | Test environment (site path, storage prefix, banner) | `.github/workflows/pages.yml`, `IS_TEST` in `web/api.js`, `apps-script/.clasp-test.json` (local) + `push-test` |
 
 ---

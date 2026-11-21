@@ -39,4 +39,4 @@ The `web` container runs as user `node` (uid 1000), so `node_modules/` and `pack
 
 ## 4. Deploy
 
-`.github/workflows/frontend.yml`: build on every PR and push touching `frontend/` or `firebase.json`. When the repository variable `CLOUD_DEPLOY` is `on`, a push to `develop` deploys to the **test** Firebase project and `master` to **prod**. Keep this file current (root `CLAUDE.md` § 4).
+`.github/workflows/frontend.yml`: build on every PR and push touching `frontend/` or `firebase.json`. When the repository variable `CLOUD_DEPLOY` is `on`, a push to `develop` deploys to the **dev** Firebase project and `master` to **prod**. Keep this file current (root `CLAUDE.md` § 4).

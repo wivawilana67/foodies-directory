@@ -1,6 +1,6 @@
 name: Frontend (build and deploy to Firebase Hosting)
 
-# Builds on every PR and push that touches frontend/. Deploys: develop -> test project, master -> prod project.
+# Builds on every PR and push that touches frontend/. Deploys: develop -> dev project, master -> prod project.
 # Deploys stay off until the repository variable CLOUD_DEPLOY is "on" (after the console setup, see the README).
 on:
   push:
@@ -37,7 +37,7 @@ jobs:
       (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment: ${{ github.ref == 'refs/heads/master' && 'prod' || 'test' }}
+    environment: ${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}
     concurrency:
       group: deploy-frontend-${{ github.ref }}
       cancel-in-progress: false

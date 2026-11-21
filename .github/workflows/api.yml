@@ -1,6 +1,6 @@
 name: API (test and deploy to Cloud Run)
 
-# Tests run on every PR and push that touches api/. Deploys: develop -> test project, master -> prod project.
+# Tests run on every PR and push that touches api/. Deploys: develop -> dev project, master -> prod project.
 # Deploys stay off until the repository variable CLOUD_DEPLOY is "on" (after the console setup, see the README).
 on:
   push:
@@ -48,7 +48,7 @@ jobs:
       (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment: ${{ github.ref == 'refs/heads/master' && 'prod' || 'test' }}
+    environment: ${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}
     concurrency:
       group: deploy-api-${{ github.ref }}
       cancel-in-progress: false

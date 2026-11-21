@@ -84,7 +84,7 @@ The live app uses the `foodies.*` keys below. The test copy (`IS_TEST`) uses the
 | The text to copy or share for a place | `placeText(p)`: name, location, Maps link on three lines |
 | Copy with a "Copied" message / a short message | `copyText(value, doneMessage)` / `toast(msg)` |
 | A place's coordinates | `coordsOf(p)` → `{lat, lng}` or `null` |
-| A link to open in Google Maps | `mapsHref(p)` (`Link Google`, else a Maps search) |
+| A link to open in Google Maps | `mapsHref(p)` (`Google Maps Link`, else a Maps search) |
 | Switch view | `show(view, push)`; `push` adds a history entry so the phone's Back returns |
 | Update data and re-render lists | `upsert(state.places | state.dishes, item)` then `changed()` |
 | A record's photo IDs / a thumbnail `<img>` / the Add photo control | `photoIdsOf(record)` / `photoImg(id, width, className)` / `addPhotoButton(target, id, status, done)` |
@@ -134,7 +134,7 @@ The live app uses the `foodies.*` keys below. The test copy (`IS_TEST`) uses the
 - **Theme** (Settings → Theme, key `foodies.theme`): System follows `prefers-color-scheme`; Light and Dark set `data-theme` on `<html>`. Dark tokens are defined twice in `styles.css`: under `@media (prefers-color-scheme: dark)` for `:root:not([data-theme="light"])`, and under `:root[data-theme="dark"]`. They redefine the tokens only; pastels keep dark text in both themes. `theme-color` follows the chosen theme.
 - Fonts are bundled (works offline, no Google request): Nunito for text, Fredoka for headings, Latin subset only, in `fonts/` with their SIL Open Font Licences; both are in `SHELL`. Other scripts fall back to the system font.
 - Single column, max 640 px, 16 px side gutter; sticky cream top bar (title, Install app, ⚙); fixed bottom tabs All · Wishlist · Near me · Add.
-- English UI; the sheet's own labels (Tipe, Genre, Jenis) are kept.
+- English UI, including Type / Genre / Category (the sheet headers are English since D51; the internal keys stay `tipe`, `genre`, `jenis`).
 - Icon: cream plate on orange (`icons/`), motif kept inside the maskable safe zone.
 - `[hidden]` is forced to `display: none` so classes with `display` cannot reveal hidden elements.
 

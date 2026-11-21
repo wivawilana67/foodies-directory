@@ -57,6 +57,36 @@ function addMissingColumns() {
   });
 }
 
+// Old Indonesian header -> English header, for "Food List" and "Master" (D51).
+const OLD_HEADERS = {
+  'Nama Resto': 'Name',
+  'Negara': 'Country',
+  'Kota': 'City',
+  'Lokasi': 'District',
+  'Jalan / Patokan': 'Landmark',
+  'Range Harga (Per Orang)': 'Price Range (Per Person)',
+  'Tipe Foodies': 'Type',
+  'Genre Foodies': 'Genre',
+  'Jenis Foodies': 'Category',
+  'Link Instagram': 'Instagram Link',
+  'Link Google': 'Google Maps Link',
+};
+
+// Once per spreadsheet, right after pushing the code that expects English headers: renames the old Indonesian
+// header cells in "Food List" and "Master". Only header cells change; data rows are untouched. Safe to run again.
+function renameHeadersToEnglish() {
+  [SHEET_NAME, MASTER_SHEET].forEach((name) => {
+    const sheet = openTab_(name);
+    const renamed = [];
+    readHeaders_(sheet).forEach((h, i) => {
+      if (!OLD_HEADERS[h]) return;
+      sheet.getRange(HEADER_ROW, i + 1).setValue(OLD_HEADERS[h]);
+      renamed.push(h + ' -> ' + OLD_HEADERS[h]);
+    });
+    Logger.log('%s: renamed %s', name, renamed.join(', ') || 'none');
+  });
+}
+
 // Once, before the first photo: creates the "Foodies Photos - <sheet name>" Drive folder and stores its ID in PHOTO_FOLDER_ID.
 // The first run asks for Drive access.
 function setupPhotos() {

@@ -44,7 +44,7 @@ function renderLabelChips() {
 }
 
 export function renderFilters() {
-  const names = { tipe: 'Any tipe', genre: 'Any genre', jenis: 'Any jenis', city: 'Any city' };
+  const names = { tipe: 'Any type', genre: 'Any genre', jenis: 'Any category', city: 'Any city' };
   for (const f of FILTERS) fillSelect($(`filter-${f}`), unique(state.places.map((p) => p[f])), names[f]);
   renderLabelChips();
 }

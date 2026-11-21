@@ -53,6 +53,7 @@ All requests are `POST` with body `{"action", "token", ...}` sent as `text/plain
 |---|---|---|
 | `setupSheet` | `Setup.js` | New spreadsheet only: rewrites the "Food List" header row (refuses if it has data rows), creates "Dishes" and "Master" with headers, freezes row 1 |
 | `checkColumns` | `Setup.js` | Logs each tab's real headers and which configured fields were found |
+| `renameHeadersToEnglish` | `Setup.js` | Once per spreadsheet (D51): renames the old Indonesian header cells in "Food List" and "Master" (`OLD_HEADERS`) to the English names in `Config.js`. Header cells only; safe to run again |
 | `addMissingColumns` | `Setup.js` | "Food List" and "Dishes" with data: appends every configured header that is missing (a new column such as `Labels` or `Photos`, or app columns at migration) after the last column |
 | `setupPhotos` | `Setup.js` | Once: creates the "Foodies Photos - <sheet name>" Drive folder and stores its ID in `PHOTO_FOLDER_ID`; does nothing if that property is set. The first run asks for Drive access |
 | `backfillBatch` | `Backfill.js` | Looks up the next `BACKFILL_BATCH` rows and fills their empty app cells |
@@ -91,7 +92,7 @@ The test project has its own set of these: `SPREADSHEET_ID` of the sheet copy, a
 | Photo IDs from a record's `Photos` cell | `photoIds_(cell)` |
 | Move photo files to Drive's trash | `trashPhotos_(ids)` (used by `deletePhoto_` and `deleteDish_`) |
 | Checkbox or "yes" text | `isChecked_(value)`; compare for conflicts with `comparable_(field, value)` |
-| Master lists / add a new Tipe-Genre-Jenis value | `readOptions_()` / `appendOptions_(values, options)` |
+| Master lists / add a new Type-Genre-Category value | `readOptions_()` / `appendOptions_(values, options)` |
 | UniqueName, Hyperlink, checkboxes on a new row | `uniqueName_(v)`, `setHyperlink_(…)`, `setCheckboxes_(…)` |
 | App-owned cells from a Google place | `appCells_(place)` |
 | One place by ID / search by text | `getPlace_(id)` / `searchText_(query, near, max)` — both reserve quota |
@@ -117,9 +118,9 @@ The test project has its own set of these: `SPREADSHEET_ID` of the sheet copy, a
 ## 5. Domain Rules
 
 ### 5.1 Sheet
-- "Food List" headers are the old "Foodies Checklist" names (`placeFields_()` in `Config.js`), header in row `HEADER_ROW` = 1. Only `name` ("Nama Resto") is required to read; writes need all `APP_FIELDS`.
+- "Food List" headers are English (`placeFields_()` in `Config.js`, D51), header in row `HEADER_ROW` = 1. Sheets with the old Indonesian headers (`OLD_HEADERS` in `Setup.js`) are converted once with `renameHeadersToEnglish`. The internal field keys stay `tipe`, `genre`, `jenis` (shown as Type, Genre, Category). Only `name` ("Name") is required to read; writes need all `APP_FIELDS`.
 - `Rating (<name>)` / `Review (<name>)` use the names in `PEOPLE`. The old sheet had one shared "Ratings" column; at migration it is copied into both rating columns (not built yet).
-- "Master" holds the lists the phone offers. The order of `Ratings` is the sort rank (first = lowest, last = best, e.g. `1 … 10, HEAVEN!, ULTRA HEAVEN 🔥`). A new Tipe / Genre / Jenis value saved from the phone is appended to its Master column.
+- "Master" holds the lists the phone offers. The order of `Ratings` is the sort rank (first = lowest, last = best, e.g. `1 … 10, HEAVEN!, ULTRA HEAVEN 🔥`). A new Type / Genre / Category value saved from the phone is appended to its Master column.
 - `Closed`, `Have Tried?` and `Best` are checkboxes on rows the app writes (`insertCheckboxes` per row, never on empty rows: that would move `appendRow` to the bottom of the grid). `isChecked_` also accepts `yes`, `y`, `true`, `sudah` typed by hand.
 - `listPlaces_` gives any named row without an `App ID` a new one (fills an empty app cell only), so rows typed straight into the sheet can be edited from the phone.
 - "Food List" and "Dishes" each have a `Photos` column: comma-separated Drive file IDs, the first is the cover (§ 5.7).
@@ -127,9 +128,9 @@ The test project has its own set of these: `SPREADSHEET_ID` of the sheet copy, a
 ### 5.2 Adding and editing a place
 - `lookup_` caches results for `LOOKUP_CACHE_SECONDS` (10 min); `addPlace_` takes Google data from the cache, so the phone sends only `placeId` plus its own fields. The phone's non-empty fields win over Google's defaults (name, country, city, district, Maps link).
 - Without `placeId` the place is manual (`Lookup Status` = `manual`); otherwise `added`. Duplicates are matched on `Place ID`; a duplicate returns the existing row and writes nothing.
-- `UniqueName` = `Name - Country (Patokan)`; `Hyperlink` = the name as a rich-text link to `Link Google` (no formula). Both are recomputed when name, country, landmark or Maps link change; a new UniqueName is copied to the place's dish rows.
+- `UniqueName` = `Name - Country (Landmark)`; `Hyperlink` = the name as a rich-text link to `Google Maps Link` (no formula). Both are recomputed when name, country, landmark or Maps link change; a new UniqueName is copied to the place's dish rows.
 - `update` refuses the whole save if any changed field's current cell differs from `original` (edited on the other phone or in the sheet). Only cells whose value really changes are written.
-- Validation (`cleanValue_`): text ≤ 200 characters (reviews ≤ 1000); ratings must be a Master `Ratings` value or empty; Instagram accepts `@name` (turned into `https://www.instagram.com/name/`) or an `https://instagram.com/…` link; `Link Google` must be an `https://` Maps link (`isMapsUrl_`) or `https://share.google/…`.
+- Validation (`cleanValue_`): text ≤ 200 characters (reviews ≤ 1000); ratings must be a Master `Ratings` value or empty; Instagram accepts `@name` (turned into `https://www.instagram.com/name/`) or an `https://instagram.com/…` link; `Google Maps Link` must be an `https://` Maps link (`isMapsUrl_`) or `https://share.google/…`.
 - `UniqueName`, `Hyperlink` and `Best Dish` are derived and not in `EDITABLE_FIELDS`.
 - `Labels` holds any number of free labels in one cell as `"A, B"`. `cleanLabels_` accepts a list or comma-separated text, trims, drops blanks and case-insensitive repeats, and refuses a label over 40 characters or more than 20 labels. No Master list: the phone suggests labels already used on other places.
 
@@ -142,7 +143,7 @@ The test project has its own set of these: `SPREADSHEET_ID` of the sheet copy, a
 - Accepted hosts: `maps.app.goo.gl`, `goo.gl/maps…`, `maps.google.*`, `google.*/maps…`, and `share.google` (below). Anything else is refused before any fetch.
 - Short links are resolved one redirect at a time with `followRedirects: false`, reading `Location`, max 5 hops; a `consent.google.*` page is unwrapped through its `continue` parameter.
 - From the long URL: a `ChIJ…` place ID (`query_place_id=`, `place_id:`, `!19s`) → GetPlace; otherwise the `/maps/place/<name>` or `q=` text → SearchText biased 1 km around the `!3d…!4d…` pin or `@lat,lng`. These patterns are observed, not documented by Google.
-- `share.google` links (Google's Share button) are followed by `resolveShareLink_` with the same rules (`followRedirects: false`, `Location`, max 5 hops, consent pages unwrapped). They end at a Maps URL (then the usual Maps path) or at a `google.<tld>/search?…q=` page: the name in `q` is searched with `searchText_(name, null, 5)`, so the phone picks from up to 5 results. Hops observed from a PC on 2026-11-17: `share.google/<code>` → `www.google.com/share.google?q=<code>` → `www.google.com/search?…q=<place name>…`. Whether Apps Script sees the same hops is **Unverified**. A share.google link is also accepted as a stored `Link Google`.
+- `share.google` links (Google's Share button) are followed by `resolveShareLink_` with the same rules (`followRedirects: false`, `Location`, max 5 hops, consent pages unwrapped). They end at a Maps URL (then the usual Maps path) or at a `google.<tld>/search?…q=` page: the name in `q` is searched with `searchText_(name, null, 5)`, so the phone picks from up to 5 results. Hops observed from a PC on 2026-11-17: `share.google/<code>` → `www.google.com/share.google?q=<code>` → `www.google.com/search?…q=<place name>…`. Whether Apps Script sees the same hops is **Unverified**. A share.google link is also accepted as a stored `Google Maps Link`.
 
 ### 5.5 Places API and spend
 - Only SearchText and GetPlace, with `PLACE_FIELDS` as the field mask (no rating, price level or hours: likely a higher tier with a smaller free cap — see `docs/decisions.md` D6).
@@ -152,7 +153,7 @@ The test project has its own set of these: `SPREADSHEET_ID` of the sheet copy, a
 - The counter does not protect against someone using a leaked key directly; Google Cloud quota caps do (`docs/gcp-setup.md`).
 
 ### 5.6 Backfill
-- Picks rows with a name, an empty `Place ID` and an empty `Lookup Status`. A real Maps link in `Link Google` is used first; otherwise it searches `"<name> <city>"` and takes the top result. A `share.google` link in `Link Google` is not followed here yet (see `docs/decisions.md` Open).
+- Picks rows with a name, an empty `Place ID` and an empty `Lookup Status`. A real Maps link in `Google Maps Link` is used first; otherwise it searches `"<name> <city>"` and takes the top result. A `share.google` link in `Google Maps Link` is not followed here yet (see `docs/decisions.md` Open).
 - Writes only empty app-owned cells, cell by cell. Never writes user columns; a placeholder such as "AI Generated" in a link column stays.
 - Sets `Lookup Status` to `ok`, `not found` or `error: …`. To retry a row, clear its `Lookup Status`. Wrong match → clear the app cells and the status, or fix by hand.
 - Stops the batch on a quota-limit error. Raise `DAILY_LIMIT` (e.g. 300) on backfill day only.
@@ -176,4 +177,5 @@ The test project has its own set of these: `SPREADSHEET_ID` of the sheet copy, a
 - After a release that adds a column to "Food List" or "Dishes" (e.g. `Labels`, `Photos`) to a sheet that already has rows: run `addMissingColumns` (it covers both tabs), then `checkColumns`, in each project.
 - First release with photos, in each project (test first, then prod): push → `addMissingColumns` (until it runs, `list` and the dish actions fail with "Missing columns … Photos") → `setupPhotos` (approve the Drive access) → update the deployment to a new version → then the front end reaches that environment (push `develop` for test; merge `develop` → `master` for live).
 - The manifest declares explicit `oauthScopes` (Sheets, `script.external_request`, `drive.file`), so the first editor run after the push may ask to authorize again. The Drive scope is covered in § 5.7.
+- Release with English headers (D51), in each project (test first, then prod): push → run `renameHeadersToEnglish` → `checkColumns` → at once update that deployment to a new version. Between the rename and the new version, the old deployed code cannot find its headers, so do the three steps together. The old "Foodies Checklist" gets the same rename before migration.
 - Keep this file current (root `CLAUDE.md` § 4).

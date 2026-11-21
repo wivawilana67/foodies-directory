@@ -3,7 +3,7 @@
 Our personal directory of places to eat, on the phone. A Google Sheet is the database (same columns as the old "Foodies Checklist"); this app adds:
 
 - **All / Wishlist / Near me** tabs: every place sorted by our scores, the places not tried yet, and everything sorted by distance from where you stand.
-- **A full place record**: country, city, district, landmark, Tipe / Genre / Jenis, price, Google Maps and Instagram links, a score and a review from each of us.
+- **A full place record**: country, city, district, landmark, Type / Genre / Category, price, Google Maps and Instagram links, a score and a review from each of us.
 - **Dishes per place**: what we ate, the price, liked or not, a note; starred dishes become the place's "Best Dish".
 - **Add a place** by pasting a Google Maps or share.google link, sharing from Google Maps (Android), or typing a name. Google fills in the country, city, district, coordinates and Maps link. Places not on Google Maps can be added by name.
 - **Labels**: any number of your own tags per place ("Date night", "Trip Tokyo", "Halal"), to filter the lists.
@@ -38,7 +38,7 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 ### Find a place
 1. Open the app → **All** shows the saved list at once, then refreshes from the sheet. Places are sorted by the average of both scores (ULTRA HEAVEN 🔥 > HEAVEN! > 10 … 1), unrated last.
 2. **Wishlist** shows only places not tried yet. **Near me** asks for location and sorts by distance (with a "Wishlist only" switch). Location stays on the phone.
-3. Search by name, city, dish, label or craving. Tap **label chips** above the list to show only places with all the chosen labels. **Filters** narrow by Tipe, Genre, Jenis or City. Closed places are hidden unless **Show closed places** is ticked.
+3. Search by name, city, dish, label or craving. Tap **label chips** above the list to show only places with all the chosen labels. **Filters** narrow by Type, Genre, Category or City. Closed places are hidden unless **Show closed places** is ticked.
 4. Tap a card → the place: address, labels, both scores and reviews, price, best dish, dishes, **Maps** and **Instagram** buttons.
 
 ### Copy and share
@@ -49,7 +49,7 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 ### Add a place
 1. **Android:** in Google Maps, Share → Foodies. **iPhone or anywhere:** copy the Maps link, open **Add**, tap **Paste** (or long-press paste). Or type a name, e.g. "Bakmi GM Bandung". A share.google link (from Google's Share button) works too: the app takes the place name it carries and searches for it.
 2. Tap **Search** → up to 5 matches from Google → **Pick** the right one.
-3. The place form opens, filled from Google (name, country, city, district, Maps link). Fix anything, add Tipe / Genre / Jenis (pick from the Master lists or **+ Add new…**), scores, reviews, price, Instagram → **Save**. Country, City and District suggest values already used on other places. Google's names and addresses come in English, so a city is spelled one way.
+3. The place form opens, filled from Google (name, country, city, district, Maps link). Fix anything, add Type / Genre / Category (pick from the Master lists or **+ Add new…**), scores, reviews, price, Instagram → **Save**. Country, City and District suggest values already used on other places. Google's names and addresses come in English, so a city is spelled one way.
 4. A row is appended to "Food List". If the place is already there, nothing is written and the app opens the existing one.
 5. Not on Google Maps? **Add it by name** opens the same form without Google data.
 
@@ -94,7 +94,7 @@ flowchart LR
 |---|---|---|---|---|
 | Load list | `list` → `listPlaces_` | Food List, Dishes, Master | `App ID` for rows typed in the sheet without one | 0 |
 | Look up | `lookup` → `lookup_` | — | Script cache (10 min), `USAGE` | 1 (a share.google link is followed by Apps Script first) |
-| Add place | `add` → `addPlace_` | Food List, Master, script cache | Food List (append row), Master (new Tipe/Genre/Jenis) | 0–1 |
+| Add place | `add` → `addPlace_` | Food List, Master, script cache | Food List (append row), Master (new Type/Genre/Category) | 0–1 |
 | Edit place | `update` → `updatePlace_` | Food List, Master | Changed Food List cells, UniqueName / Hyperlink, dish UniqueName, Master | 0 |
 | Save dish | `saveDish` → `saveDish_` | Food List, Dishes | Dishes (append or edit row), place's Best Dish | 0 |
 | Delete dish | `deleteDish` → `deleteDish_` | Dishes | Dishes (delete row), place's Best Dish, the dish's photos to Drive trash | 0 |
@@ -103,9 +103,9 @@ flowchart LR
 | Backfill | `backfillBatch` (editor) | Food List | Empty app cells + `Lookup Status` | 1 per row |
 | Set up | `setupSheet`, `checkColumns`, `addMissingColumns`, `setupPhotos` (editor) | Header rows | Header rows, Dishes and Master tabs; `setupPhotos` creates the Drive folder and `PHOTO_FOLDER_ID` | 0 |
 
-**"Food List" user columns** (the old sheet's names): UniqueName, Nama Resto, Hyperlink, Negara, Kota, Lokasi, Jalan / Patokan, Rating (person 1), Rating (person 2), Range Harga (Per Orang), Tipe Foodies, Genre Foodies, Jenis Foodies, Labels (comma-separated), Best Dish, Review (person 1), Review (person 2), Link Instagram, Link Google, Closed, Have Tried?. The two names come from Script Property `PEOPLE`.
+**"Food List" user columns** (English since D51; `renameHeadersToEnglish` converts the old Indonesian names): UniqueName, Name, Hyperlink, Country, City, District, Landmark, Rating (person 1), Rating (person 2), Price Range (Per Person), Type, Genre, Category, Labels (comma-separated), Best Dish, Review (person 1), Review (person 2), Instagram Link, Google Maps Link, Closed, Have Tried?. The two names come from Script Property `PEOPLE`.
 **App columns:** App ID, Place ID, Lat, Lng, Address, Google Category, Added At, Lookup Status, Photos (Drive file IDs, comma-separated; the first is the cover).
-**"Dishes":** Dish ID, App ID, UniqueName, Dish, Price, Liked, Best, Note, Added At, Photos (same format). **"Master":** Ratings, Tipe Foodies, Genre Foodies, Jenis Foodies.
+**"Dishes":** Dish ID, App ID, UniqueName, Dish, Price, Liked, Best, Note, Added At, Photos (same format). **"Master":** Ratings, Type, Genre, Category.
 
 **Script Properties:** `PLACES_API_KEY`, `API_TOKEN`, `SPREADSHEET_ID`, `PEOPLE`, `PHOTO_FOLDER_ID` (written by `setupPhotos`), optional `DAILY_LIMIT` (50) / `MONTHLY_LIMIT` (900), and `USAGE` (written by code).
 **On each phone (localStorage):** backend URL, token, last list (places, dishes, Master lists, names), theme (`foodies.theme`). The test copy keeps its own URL, token and list under `foodies-test.*` keys; the theme is shared.
@@ -135,7 +135,7 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 3. In the Apps Script editor, Project Settings → IDs → copy the **Script ID**. Copy `apps-script/.clasp.example.json` to `apps-script/.clasp-prod.json` and paste the Script ID. The file is gitignored.
 4. `npm run push-prod`. The push replaces every file in the project.
 5. In the editor → Project Settings → Script Properties, add `PLACES_API_KEY`, `API_TOKEN` (32+ random characters, e.g. `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`), `SPREADSHEET_ID` (from the sheet URL) and `PEOPLE` (the two names, comma-separated, as they should appear in the Rating / Review headers).
-6. New, empty sheet: run `setupSheet` (writes the "Food List" headers, including Photos, and creates "Dishes" and "Master"), then fill the Master lists (Ratings in order worst → best, Tipe, Genre, Jenis). Sheet with data (a new column such as Labels or Photos, or migration): run `addMissingColumns` instead (it covers "Food List" and "Dishes").
+6. New, empty sheet: run `setupSheet` (writes the "Food List" headers, including Photos, and creates "Dishes" and "Master"), then fill the Master lists (Ratings in order worst → best, Type, Genre, Category). Sheet with data (a new column such as Labels or Photos, or migration): run `addMissingColumns` instead (it covers "Food List" and "Dishes").
 7. Run `checkColumns` and confirm nothing is MISSING. Then run `setupPhotos` once and approve the Drive access it asks for; it creates the "Foodies Photos - <sheet name>" folder and stores `PHOTO_FOLDER_ID`. Photos do not work before this.
 8. Deploy → New deployment → Web app, execute as **Me**, access **Anyone**. Copy the `/exec` URL to your password manager. Opening it in a browser only shows `{"ok":true}`; the app talks to it with POST.
 
@@ -160,6 +160,7 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 - Backend: test first, then prod. `npm run push-test`, then Deploy → Manage deployments → edit the existing test deployment → New version. For a release, `npm run push-prod`, then the same on the live deployment. The URLs stay the same.
 - First release with photos, in each project (test first, then prod): push; editor `addMissingColumns` (until it runs, `list` and the dish actions fail with "Missing columns … Photos"); editor `setupPhotos` and approve the Drive access; update that deployment to a new version. The manifest declares explicit OAuth scopes, so the first editor run may ask to authorize again.
 - Front end: commit and push to `develop` (or merge a PR into it); the test site updates under `/test/`. Release by opening a PR from `develop` into `master` and merging it; the live site updates.
+- English headers (one-time, D51), in each project (test first, then prod): push, run `renameHeadersToEnglish` in the editor, run `checkColumns`, then update that deployment to a new version right away. Then push the front end (`develop` for test; release PR for live).
 - Day to day: work on `develop`. If the change touches `apps-script/`, run `npm run push-test` and update the test deployment → push `develop` (test site updates) → try it on both phones. Release: take a backup, `npm run push-prod`, update the live deployment, then PR `develop` → `master` and merge (live site updates).
 
 ## Install on the phones

@@ -5,30 +5,30 @@ const DISHES_SHEET = 'Dishes';
 const MASTER_SHEET = 'Master';
 const HEADER_ROW = 1;
 
-// "Food List" columns in sheet order: logical field -> header text (the old sheet's names).
-// Per-person headers use the two names in Script Property PEOPLE, so names stay out of this public repo.
+// "Food List" columns in sheet order: logical field -> header text (English; the old Indonesian names are in
+// OLD_HEADERS, Setup.js). Per-person headers use the two names in Script Property PEOPLE, so names stay out of this public repo.
 function placeFields_() {
   const p = people_();
   return {
     uniqueName: 'UniqueName',
-    name: 'Nama Resto',
+    name: 'Name',
     hyperlink: 'Hyperlink',
-    country: 'Negara',
-    city: 'Kota',
-    district: 'Lokasi',
-    landmark: 'Jalan / Patokan',
+    country: 'Country',
+    city: 'City',
+    district: 'District',
+    landmark: 'Landmark',
     rating1: 'Rating (' + p[0] + ')',
     rating2: 'Rating (' + p[1] + ')',
-    price: 'Range Harga (Per Orang)',
-    tipe: 'Tipe Foodies',
-    genre: 'Genre Foodies',
-    jenis: 'Jenis Foodies',
+    price: 'Price Range (Per Person)',
+    tipe: 'Type',
+    genre: 'Genre',
+    jenis: 'Category',
     labels: 'Labels',
     bestDish: 'Best Dish',
     review1: 'Review (' + p[0] + ')',
     review2: 'Review (' + p[1] + ')',
-    instagram: 'Link Instagram',
-    mapsLink: 'Link Google',
+    instagram: 'Instagram Link',
+    mapsLink: 'Google Maps Link',
     closed: 'Closed',
     tried: 'Have Tried?',
   };
@@ -63,9 +63,9 @@ const DISH_FIELDS = {
 // "Master" lists. The order of Ratings is the sort rank (last = best).
 const MASTER_FIELDS = {
   rating: 'Ratings',
-  tipe: 'Tipe Foodies',
-  genre: 'Genre Foodies',
-  jenis: 'Jenis Foodies',
+  tipe: 'Type',
+  genre: 'Genre',
+  jenis: 'Category',
 };
 
 // Place fields the phone may set. UniqueName, Hyperlink and Best Dish are derived by the server.

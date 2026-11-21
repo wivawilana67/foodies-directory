@@ -1,0 +1,50 @@
+# Local development. Everything runs in containers; the machine only needs Docker.
+#   docker compose up              -> web on http://localhost:5173, API on http://localhost:8000
+#   docker compose run --rm api python manage.py test
+name: foodies
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: foodies
+      POSTGRES_USER: foodies
+      POSTGRES_PASSWORD: foodies # local container only; the port is not published
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U foodies -d foodies"]
+      interval: 2s
+      retries: 15
+
+  api:
+    build: ./api
+    command: python manage.py runserver 0.0.0.0:8000
+    environment:
+      DATABASE_URL: postgres://foodies:foodies@db:5432/foodies
+      DJANGO_SECRET_KEY: local-dev-only
+      DJANGO_DEBUG: "1"
+    volumes:
+      - ./api:/app
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    image: node:24-alpine
+    user: node # uid 1000, so files written into ./frontend (node_modules, package-lock.json) belong to you
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      API_PROXY: http://api:8000
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "127.0.0.1:5173:5173"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

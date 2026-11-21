@@ -1,9 +1,11 @@
 # Foodies Directory — Rules for Engineers and AI Agents
 
-A phone-friendly directory of places to eat for two people, kept in a Google Sheet (tabs "Food List", "Dishes", "Master", with the old "Foodies Checklist" column names). Android installs it as an app; iPhone uses it in Safari. Two parts that talk over one HTTPS endpoint:
+A phone-friendly directory of places to eat for two people, kept in a Google Sheet (tabs "Food List", "Dishes", "Master", English headers since D51). Android installs it as an app; iPhone uses it in Safari. Two parts that talk over one HTTPS endpoint:
 
 - `apps-script/` — backend: a Google Apps Script web app. Reads and writes the sheet, calls the Places API (New), holds the API key, counts spend, runs the backfill.
 - `web/` — front end: an installable web app (PWA) served by GitHub Pages. All / Wishlist / Near me lists, place detail and edit, dishes, add a place.
+
+A replacement stack is being built next to it (`docs/decisions.md` D39–D52): `api/` (Django on Cloud Run, Neon Postgres) and `frontend/` (React PWA on Firebase Hosting). Until the switch-over, `apps-script/` + `web/` are the live app.
 
 The Google Sheet is the database. **This repo is public** (free GitHub Pages): no secret, token, script ID, sheet ID or deployment URL is ever committed.
 
@@ -16,10 +18,14 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 ├── CLAUDE.md                   # This file: coding style, folder map, workflow, git rules
 ├── AGENTS.md                   # Points other AI agents to CLAUDE.md (also in apps-script/ and web/)
 ├── README.md                   # Human overview: setup, deploy, install, Business Flow, Data Flow
-├── package.json                # Only dependency (clasp) + npm deploy scripts
-├── .gitignore                  # node_modules/, every real .clasp*.json, local Claude settings
+├── package.json                # Only dependency (clasp) + npm deploy scripts for apps-script/
+├── docker-compose.yml          # Local dev for the new stack: db (Postgres 17), api (Django), web (Vite) — Docker only
+├── firebase.json               # Firebase Hosting: serves frontend/dist, rewrites /api/** to Cloud Run foodies-api
+├── .gitignore                  # node_modules/, every real .clasp*.json, .env*, frontend/dist, .firebaserc, local Claude settings
 ├── .github/
 │   ├── workflows/pages.yml     # Publishes web/ to GitHub Pages on every push to master (root) or develop (/test/)
+│   ├── workflows/api.yml       # api/: tests in the image; deploys to Cloud Run (develop → test, master → prod) when CLOUD_DEPLOY is on
+│   ├── workflows/frontend.yml  # frontend/: build; deploys to Firebase Hosting (develop → test, master → prod) when CLOUD_DEPLOY is on
 │   └── dependabot.yml          # Weekly bumps of the SHA-pinned actions (PRs into develop)
 ├── .claude/skills/
 │   └── development-documentation/   # Keeps the docs in sync with every code change
@@ -32,6 +38,10 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 │   └── src/                    # Pushed to Apps Script as-is (clasp rootDir)
 │       ├── appsscript.json     # Manifest: V8, Asia/Jakarta, web app runs as owner
 │       └── *.js                # Api, Config, Sheet, Dishes, Photos, Places, MapsLink, Usage, Backfill, Setup
+├── api/                        # New backend (Django in Docker; Phase 1: /api/health only)
+│   └── CLAUDE.md               # Files, endpoints, env settings, Docker commands  ← read before editing
+├── frontend/                   # New front end (React + TypeScript + Vite; Phase 1: health page)
+│   └── CLAUDE.md               # Files, Docker commands, conventions  ← read before editing
 └── web/                        # Front end (static PWA, no build step)
     ├── CLAUDE.md               # File map, conventions, platform rules  ← read before editing
     ├── index.html, styles.css  # Single page: list, place, form, add, dish, photos, settings views + bottom tabs
@@ -49,6 +59,8 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 | `docs/` | Decisions and cloud setup | A design decision is made or reversed; GCP setup changes | The file itself |
 | `apps-script/` | Backend | Sheet access, Places lookup, link parsing, spend limits, backfill, API actions, photos | `apps-script/CLAUDE.md` |
 | `web/` | Phone UI | Anything the user sees or taps; install and share behaviour | `web/CLAUDE.md` |
+| `api/` | New backend (replatform) | Endpoints, models, settings, Cloud Run image | `api/CLAUDE.md` |
+| `frontend/` | New phone UI (replatform) | Screens of the React app, PWA build | `frontend/CLAUDE.md` |
 
 ### Where do I change…?
 
@@ -74,6 +86,9 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 | Install name, icon, share target | `web/manifest.webmanifest`, `web/icons/` |
 | Backend deploy targets or npm scripts | `apps-script/.clasp-*.json` (local only) / root `package.json` |
 | Front-end deploy | `.github/workflows/pages.yml` |
+| New stack: local dev containers | `docker-compose.yml` |
+| New stack: API endpoints / settings / image | `api/config/`, `api/foodies/`, `api/Dockerfile` |
+| New stack: deploy (Cloud Run, Firebase Hosting) | `.github/workflows/api.yml`, `.github/workflows/frontend.yml`, `firebase.json`; GitHub environment variables `test` / `prod` |
 | Test environment (site path, storage prefix, banner) | `.github/workflows/pages.yml`, `IS_TEST` in `web/api.js`, `apps-script/.clasp-test.json` (local) + `push-test` |
 
 ---
@@ -104,7 +119,7 @@ The code wins when docs disagree — then fix the docs in the same change. There
    - The Places API key lives only in Script Properties. No secrets, IDs or URLs from Section 5 in code, logs, docs or commits.
 4. **Spend is a feature.** Every Places API call goes through `getPlace_` / `searchText_`, which reserve quota first. No new Places method or field without updating `docs/decisions.md` and checking the price tier.
 5. **Logged and fail-loud.** Log entry points and writes (no tokens, no location); catch, log with context, re-throw or return a clear error.
-6. **Match the stack.** Apps Script V8; vanilla HTML/CSS/JS ES modules; Google Sheets as storage. No framework, build step, npm runtime package or CDN script without the owner's approval.
+6. **Match the stack.** Live app: Apps Script V8; vanilla HTML/CSS/JS ES modules; Google Sheets as storage. New stack (owner-approved, D39–D52): Django + PostgreSQL in `api/`, React + TypeScript + Vite in `frontend/`. Local tooling runs only in Docker (`docker-compose.yml`); nothing else is installed on the machine. No other framework, runtime package or CDN script without the owner's approval.
 7. **Match the surrounding code** — naming, comment density, idiom.
 8. **Facts only.** Never invent APIs, sheet headers or rules. Unverified assumptions are marked "Unverified" in code and docs until confirmed.
 
@@ -134,7 +149,8 @@ Use the `development-documentation` skill.
 | Google Cloud setup | `docs/gcp-setup.md` |
 
 ### Verify before reporting
-- `node --check <file>` on every changed `.js` file (works for `web/` modules on Node 22+).
+- `node --check <file>` on every changed `.js` file in `apps-script/` and `web/` (works for `web/` modules on Node 22+).
+- `api/`: `docker compose run --rm api python manage.py test`. `frontend/`: `docker compose run --rm web npm run build` (type-check + build).
 - Report what you tested and what you did not. Never claim a push, deploy or test you did not run.
 
 ---

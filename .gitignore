@@ -8,3 +8,11 @@ node_modules/
 # Local Claude Code settings and agent worktrees
 .claude/settings.local.json
 .claude/worktrees/
+
+# New stack (api/, frontend/): local env files, build output, Python caches, local Firebase state
+.env
+.env.*
+frontend/dist/
+__pycache__/
+.firebaserc
+.firebase/

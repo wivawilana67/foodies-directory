@@ -19,6 +19,8 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 |---|---|
 | `apps-script/` | Backend: Google Apps Script web app (sheet access, Places API, spend limits, backfill) |
 | `web/` | Front end: installable web app (PWA) on GitHub Pages |
+| `api/`, `frontend/` | New stack being built (Django on Cloud Run, React PWA on Firebase Hosting); not live yet |
+| `docker-compose.yml`, `firebase.json` | Local dev containers for the new stack; Firebase Hosting config |
 | `docs/decisions.md` | Architecture and design decisions |
 | `docs/gcp-setup.md` | Google Cloud setup status |
 | `CLAUDE.md`, `*/CLAUDE.md` | Rules and detailed maps for engineers and AI agents |
@@ -162,6 +164,26 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 - Front end: commit and push to `develop` (or merge a PR into it); the test site updates under `/test/`. Release by opening a PR from `develop` into `master` and merging it; the live site updates.
 - English headers (one-time, D51), in each project (test first, then prod): push, run `renameHeadersToEnglish` in the editor, run `checkColumns`, then update that deployment to a new version right away. Then push the front end (`develop` for test; release PR for live).
 - Day to day: work on `develop`. If the change touches `apps-script/`, run `npm run push-test` and update the test deployment → push `develop` (test site updates) → try it on both phones. Release: take a backup, `npm run push-prod`, update the live deployment, then PR `develop` → `master` and merge (live site updates).
+
+## Local development (new stack, Docker only)
+
+The replatform (`docs/decisions.md` D39–D52) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
+
+```bash
+sudo apt update && sudo apt install -y docker.io docker-compose-v2
+sudo usermod -aG docker $USER   # then close and reopen the WSL terminal
+```
+
+Then, from the repo root:
+
+| Task | Command |
+|---|---|
+| Start database, API and web | `docker compose up` → http://localhost:5173 (API on http://localhost:8000) |
+| API tests | `docker compose run --rm api python manage.py test` |
+| Front-end type-check + build | `docker compose run --rm web npm run build` |
+| Stop / wipe the local database | `docker compose down` / `docker compose down -v` |
+
+Cloud setup (projects, buckets, Neon, keys) is done in the browser and in Google Cloud Shell, which already has `gcloud`, so nothing is installed locally for it either. Deploys run in GitHub Actions and stay off until the repository variable `CLOUD_DEPLOY` is set to `on`.
 
 ## Install on the phones
 

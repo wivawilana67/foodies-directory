@@ -35,7 +35,8 @@ The project ID and site address are kept out of this public file.
 - Secrets `DATABASE_URL` (Neon `dev`, pooled, `app_dev`) and `DJANGO_SECRET_KEY`, version 1 each.
 - Workload Identity pool `github`, provider `github-repo`, condition: this repository and `refs/heads/develop` only; `deployer` grants `workloadIdentityUser` to the repository.
 - GitHub: environment `dev` (branch `develop`) with `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `DEPLOYER_SA`; repository variable `CLOUD_DEPLOY=on`.
-- Not checked: the secrets' IAM bindings and the provider's `ACTIVE` state were not seen in output.
+- First deploy 2026-11-21 from `develop`: Cloud Run service `foodies-api` (`asia-southeast1`) and the Hosting site are live; `/api/health` through the site returns `{"ok": true}` (cold ~3 s, warm ~0.3 s). This also proves the WIF login, the secrets and their IAM bindings.
+- Firebase CLI warns it cannot check API enablement without `roles/serviceusage.serviceUsageConsumer` on `deployer`; harmless, the deploy succeeds.
 
 ## Open
 

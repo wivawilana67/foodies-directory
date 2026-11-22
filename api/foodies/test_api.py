@@ -134,6 +134,7 @@ class PlaceTests(ApiTestCase):
         Collection.objects.create(name='Trip')
         body = self.call('get', '/api/bootstrap').json()
         self.assertEqual([p['name'] for p in body['people']], ['Ana', 'Budi'])
+        self.assertEqual(body['me'], self.ana.id)
         self.assertEqual(body['options']['rating'], ['7', '8', 'HEAVEN!'])
         self.assertEqual((len(body['places']), len(body['dishes']), len(body['collections'])), (1, 1, 1))
         self.assertEqual(body['places'][0]['labels'], ['Spicy'])

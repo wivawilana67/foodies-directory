@@ -128,7 +128,7 @@ def sign_out_everywhere(request):
 
 @api('GET')
 def bootstrap(request):
-    return payload.bootstrap()
+    return {**payload.bootstrap(), 'me': request.person.id}
 
 
 @api('POST')

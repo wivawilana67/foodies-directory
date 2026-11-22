@@ -1,155 +1,117 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { ApiError, api, hasToken, readCache, setToken, writeCache } from './api';
+import { PlaceList, type Tab } from './PlaceList';
+import { Settings } from './Settings';
+import { SignIn } from './SignIn';
+import { Toast } from './Toast';
+import type { Data } from './types';
 
-// Temporary Phase 3 check page (replaced by the real screens in Phase 4): API health, Google Sign-In against
-// POST /api/auth/google, and a Places lookup with the app token. See api/CLAUDE.md for the API contract.
+// App shell: sign-in, the saved copy of /api/bootstrap (instant start, offline), top bar, bottom tabs and the
+// phone's Back button (sub-views push a history entry; tabs replace it).
 
-type Health = 'checking' | 'ok' | 'down';
-type Person = { id: number; name: string };
-type Found = { placeId: string; name: string; address: string };
-
-const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
-const TOKEN_KEY = 'foodies.token';
-
-function loadToken(): string {
-  try {
-    return localStorage.getItem(TOKEN_KEY) ?? '';
-  } catch {
-    return '';
-  }
-}
-
-function saveToken(token: string) {
-  try {
-    if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
-  } catch {
-    // Private browsing: the token lasts only for this page load.
-  }
-}
-
-async function api<T>(path: string, token: string, body?: unknown): Promise<T> {
-  const response = await fetch(path, {
-    method: body === undefined ? 'GET' : 'POST',
-    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-  const data = await response.json();
-  if (!data.ok) throw new Error(data.error ?? `HTTP ${response.status}`);
-  return data as T;
-}
-
-function loadGoogleScript(): Promise<void> {
-  if (window.google) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Could not load Google Sign-In'));
-    document.head.appendChild(script);
-  });
-}
+type View = 'list' | 'settings';
+const TABS: [Tab, string, string][] = [
+  ['all', '📋', 'All'],
+  ['wishlist', '🔖', 'Wishlist'],
+  ['near', '📍', 'Near me'],
+];
 
 export function App() {
-  const [health, setHealth] = useState<Health>('checking');
-  const [token, setToken] = useState(loadToken);
-  const [person, setPerson] = useState<Person | null>(null);
+  const [signedIn, setSignedIn] = useState(hasToken);
+  const [signInMessage, setSignInMessage] = useState('');
+  const [data, setData] = useState(readCache);
   const [status, setStatus] = useState('');
-  const [query, setQuery] = useState('');
-  const [found, setFound] = useState<Found[]>([]);
-  const buttonRef = useRef<HTMLDivElement>(null);
+  const [tab, setTab] = useState<Tab>('all');
+  const [view, setView] = useState<View>('list');
 
-  useEffect(() => {
-    fetch('/api/health')
-      .then((r) => r.json())
-      .then((body: { ok?: boolean }) => setHealth(body.ok ? 'ok' : 'down'))
-      .catch(() => setHealth('down'));
+  // Signing out forgets the token and the saved list on this phone.
+  const signOut = useCallback((message: string) => {
+    setToken('');
+    writeCache(null);
+    setData(null);
+    window.google?.accounts.id.disableAutoSelect();
+    setSignInMessage(message);
+    setSignedIn(false);
+    history.replaceState({ view: 'list' }, '');
+    setView('list');
   }, []);
 
-  useEffect(() => {
-    if (!token) return;
-    api<{ person: Person }>('/api/auth/me', token)
-      .then((r) => setPerson(r.person))
-      .catch((e: Error) => {
-        setStatus(e.message);
-        setToken('');
-        saveToken('');
-      });
-  }, [token]);
+  const refresh = useCallback(async () => {
+    setStatus('Loading…');
+    try {
+      const fresh = await api<Data>('/api/bootstrap');
+      setData(fresh);
+      writeCache(fresh);
+      setStatus('');
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) signOut(e.message);
+      else setStatus(`Could not refresh: ${(e as Error).message}`);
+    }
+  }, [signOut]);
 
   useEffect(() => {
-    if (token || !CLIENT_ID || !buttonRef.current) return;
-    const parent = buttonRef.current;
-    loadGoogleScript()
-      .then(() => {
-        window.google!.accounts.id.initialize({
-          client_id: CLIENT_ID,
-          callback: ({ credential }) => {
-            setStatus('Signing in…');
-            api<{ token: string; person: Person }>('/api/auth/google', '', { credential })
-              .then((r) => {
-                saveToken(r.token);
-                setToken(r.token);
-                setPerson(r.person);
-                setStatus('');
-              })
-              .catch((e: Error) => setStatus(e.message));
-          },
-        });
-        window.google!.accounts.id.renderButton(parent, { theme: 'outline', size: 'large', text: 'signin_with' });
-      })
-      .catch((e: Error) => setStatus(e.message));
-  }, [token]);
+    if (signedIn) refresh();
+  }, [signedIn, refresh]);
 
-  function signOut() {
-    saveToken('');
-    setToken('');
-    setPerson(null);
-    setFound([]);
-    window.google?.accounts.id.disableAutoSelect();
+  useEffect(() => {
+    const onPop = (event: PopStateEvent) => setView(event.state?.view ?? 'list');
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const onToken = useCallback((token: string) => {
+    setToken(token);
+    setSignedIn(true);
+  }, []);
+
+  function open(next: View) {
+    history.pushState({ view: next }, '');
+    setView(next);
+    window.scrollTo(0, 0);
   }
 
-  function lookup(event: React.FormEvent) {
-    event.preventDefault();
-    setStatus('Looking up…');
-    api<{ places: Found[] }>('/api/lookup', token, { input: query })
-      .then((r) => {
-        setFound(r.places);
-        setStatus(r.places.length ? '' : 'No results');
-      })
-      .catch((e: Error) => setStatus(e.message));
+  function selectTab(next: Tab) {
+    history.replaceState({ view: 'list' }, '');
+    setTab(next);
+    setView('list');
+    window.scrollTo(0, 0);
   }
+
+  const me = data?.people.find((p) => p.id === data.me);
 
   return (
-    <main>
-      <h1>Foodies Directory</h1>
-      <p>API: {health}</p>
-      {!CLIENT_ID && <p>Sign-in is not configured in this build.</p>}
-      {person ? (
-        <>
-          <p>
-            Signed in as {person.name}. <button onClick={signOut}>Sign out</button>
-          </p>
-          <form onSubmit={lookup}>
-            <label htmlFor="lookup">Look up a place (name or Google Maps link)</label>
-            <br />
-            <input id="lookup" value={query} onChange={(e) => setQuery(e.target.value)} />
-            <button type="submit" disabled={!query.trim()}>
-              Look up
+    <>
+      <header className="topbar">
+        <h1>Foodies</h1>
+        {signedIn && (
+          <button type="button" className="topbar-button" aria-label="Settings" onClick={() => open('settings')}>⚙</button>
+        )}
+      </header>
+      <main>
+        {!signedIn ? (
+          <SignIn message={signInMessage} onToken={onToken} />
+        ) : !data ? (
+          <div className="fields">
+            <p className="muted" role="status">{status || 'Loading…'}</p>
+            {status && status !== 'Loading…' && <button type="button" className="button" onClick={refresh}>Try again</button>}
+          </div>
+        ) : view === 'settings' ? (
+          <Settings name={me?.name ?? ''} onSignOut={signOut} />
+        ) : (
+          <PlaceList data={data} tab={tab} status={status} onRefresh={refresh} />
+        )}
+      </main>
+      <Toast />
+      {signedIn && data && (
+        <nav className="tabbar" aria-label="Sections">
+          {TABS.map(([key, icon, label]) => (
+            <button key={key} type="button" aria-current={view === 'list' && tab === key ? 'page' : 'false'} onClick={() => selectTab(key)}>
+              {icon}
+              <span>{label}</span>
             </button>
-          </form>
-          <ul>
-            {found.map((p) => (
-              <li key={p.placeId}>
-                {p.name} — {p.address}
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : (
-        !token && <div ref={buttonRef} />
+          ))}
+        </nav>
       )}
-      <p role="status">{status}</p>
-    </main>
+    </>
   );
 }

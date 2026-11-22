@@ -24,6 +24,8 @@ services:
       DATABASE_URL: postgres://foodies:foodies@db:5432/foodies
       DJANGO_SECRET_KEY: local-dev-only
       DJANGO_DEBUG: "1"
+      # Placeholder addresses (reserved example.com) so `manage.py dev_token` can sign in locally. Not real people.
+      ALLOWED_EMAILS: person1@example.com,person2@example.com
     volumes:
       - ./api:/app
     ports:

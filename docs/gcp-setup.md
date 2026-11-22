@@ -36,6 +36,7 @@ The project ID and site address are kept out of this public file.
 - Workload Identity pool `github`, provider `github-repo`, condition: this repository and `refs/heads/develop` only; `deployer` grants `workloadIdentityUser` to the repository.
 - GitHub: environment `dev` (branch `develop`) with `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `DEPLOYER_SA`; repository variable `CLOUD_DEPLOY=on`.
 - First deploy 2026-11-21 from `develop`: Cloud Run service `foodies-api` (`asia-southeast1`) and the Hosting site are live; `/api/health` through the site returns `{"ok": true}` (cold ~3 s, warm ~0.3 s). This also proves the WIF login, the secrets and their IAM bindings.
+- 2026-11-22: the Phase 2 deploy created the Cloud Run job `foodies-migrate` (runs `manage.py migrate` as `api-runtime` with the same secrets) and its first execution succeeded, so the tables exist on Neon `dev`. The deployer's `run.admin` covered creating and running the job; no new role was needed.
 - Firebase CLI warns it cannot check API enablement without `roles/serviceusage.serviceUsageConsumer` on `deployer`; harmless, the deploy succeeds.
 
 ## Open

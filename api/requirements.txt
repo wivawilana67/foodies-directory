@@ -4,5 +4,4 @@ psycopg[binary]>=3.3,<4
 gunicorn>=27,<28
 google-auth>=2.40,<3
 requests>=2.32,<3
-google-cloud-storage>=3.1,<4
 whitenoise>=6.9,<7

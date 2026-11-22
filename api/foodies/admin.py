@@ -15,13 +15,6 @@ class DishInline(admin.TabularInline):
     fields = ['name', 'price', 'liked', 'best', 'note']
 
 
-class PlacePhotoInline(admin.TabularInline):
-    model = models.Photo
-    fk_name = 'place'
-    extra = 0
-    fields = ['position', 'key', 'thumb_key', 'drive_id']
-
-
 @admin.register(models.Place)
 class PlaceAdmin(admin.ModelAdmin):
     list_display = ['name', 'city', 'district', 'type', 'genre', 'category', 'tried', 'closed', 'added_at']
@@ -29,7 +22,7 @@ class PlaceAdmin(admin.ModelAdmin):
     search_fields = ['name', 'city', 'district', 'landmark', 'best_dish', 'labels__name']
     filter_horizontal = ['labels']
     readonly_fields = ['id', 'updated_at', 'version']
-    inlines = [RatingInline, DishInline, PlacePhotoInline]
+    inlines = [RatingInline, DishInline]
 
 
 @admin.register(models.Dish)
@@ -72,5 +65,5 @@ class MasterOptionAdmin(admin.ModelAdmin):
     list_filter = ['kind']
 
 
-admin.site.register([models.Person, models.Label, models.Photo, models.PlaceRating, models.PlacesUsage])
+admin.site.register([models.Person, models.Label, models.PlaceRating, models.PlacesUsage])
 admin.site.site_header = 'Foodies Directory'

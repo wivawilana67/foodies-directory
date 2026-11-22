@@ -8,7 +8,7 @@ from django.core.management import CommandError, call_command
 from django.test import TestCase
 from django.utils import timezone
 
-from foodies.models import AuditLog, Dish, Label, MasterOption, Person, Photo, Place, PlaceRating
+from foodies.models import AuditLog, Dish, Label, MasterOption, Person, Place, PlaceRating
 
 PLACE_A, PLACE_B, DISH_1 = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
 
@@ -57,7 +57,7 @@ class ImportSheetTests(TestCase):
                      stdout=out, stderr=err, **extra)
         return out.getvalue(), err.getvalue()
 
-    def test_imports_places_ratings_labels_photos_dishes_and_master(self):
+    def test_imports_places_ratings_labels_dishes_and_master_and_ignores_photos(self):
         out, err = self.run_import()
         place = Place.objects.get(id=PLACE_A)
         self.assertEqual((place.name, place.city, place.type, place.category), ('Warung A', 'Jakarta', 'Restaurant', 'Main'))
@@ -66,10 +66,9 @@ class ImportSheetTests(TestCase):
         self.assertEqual(sorted(place.labels.values_list('name', flat=True)), ['Spicy', 'cheap'])
         scores = {r.person.name: (r.score, r.review) for r in place.ratings.all()}
         self.assertEqual(scores, {'Ana': ('8', 'Great'), 'Budi': ('HEAVEN!', 'Ok')})
-        self.assertEqual(list(place.photos.values_list('drive_id', 'position')), [('drive1', 0), ('drive2', 1)])
+        self.assertFalse(hasattr(place, 'photos'))  # the sheet's Photos column is ignored (D57)
         dish = Dish.objects.get(id=DISH_1)
         self.assertEqual((dish.place_id, dish.liked, dish.best, dish.note), (place.id, 'Yes', True, 'Rich broth'))
-        self.assertEqual(list(dish.photos.values_list('drive_id', flat=True)), ['drive3'])
         ranks = list(MasterOption.objects.filter(kind='rating').values_list('value', 'rank'))
         self.assertEqual(ranks, [('7', 1), ('8', 2), ('HEAVEN!', 3)])
         self.assertIn('No ID Cafe', err)
@@ -84,8 +83,7 @@ class ImportSheetTests(TestCase):
         self.run_import(places=changed)
         self.assertEqual(Place.objects.count(), 1)
         self.assertEqual(Place.objects.get(id=PLACE_A).city, 'Bandung')
-        self.assertEqual((PlaceRating.objects.count(), Photo.objects.count(), Dish.objects.count(), Label.objects.count()),
-                         (2, 3, 1, 2))
+        self.assertEqual((PlaceRating.objects.count(), Dish.objects.count(), Label.objects.count()), (2, 1, 2))
         self.assertEqual(Person.objects.count(), 2)
 
     def test_old_indonesian_headers_are_accepted(self):

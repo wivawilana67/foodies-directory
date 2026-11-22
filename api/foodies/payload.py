@@ -1,17 +1,5 @@
 """JSON shapes sent to the phone (camelCase for the React app). Querysets passed in should prefetch what they read."""
-from foodies import storage
 from foodies.models import Collection, Dish, MasterOption, Person, Place
-
-
-def photo_json(photo):
-    """URLs the phone shows: the bucket copy, or until copy_drive_photos has run, the old Drive thumbnail URL
-    (undocumented, D36)."""
-    if photo.key:
-        url, thumb = storage.public_url(photo.key), storage.public_url(photo.thumb_key or photo.key)
-    else:
-        url = f'https://drive.google.com/thumbnail?id={photo.drive_id}&sz=w1600'
-        thumb = f'https://drive.google.com/thumbnail?id={photo.drive_id}&sz=w320'
-    return {'id': str(photo.id), 'position': photo.position, 'url': url, 'thumbUrl': thumb}
 
 
 def place_json(p):
@@ -24,7 +12,6 @@ def place_json(p):
         'address': p.address, 'googleCategory': p.google_category, 'lookupStatus': p.lookup_status,
         'addedAt': p.added_at.isoformat(), 'version': p.version,
         'ratings': {str(r.person_id): {'score': r.score, 'review': r.review} for r in p.ratings.all()},
-        'photos': [photo_json(ph) for ph in p.photos.all()],
     }
 
 
@@ -32,7 +19,6 @@ def dish_json(d):
     return {
         'id': str(d.id), 'place': str(d.place_id), 'name': d.name, 'price': d.price, 'liked': d.liked,
         'best': d.best, 'note': d.note, 'addedAt': d.added_at.isoformat(),
-        'photos': [photo_json(ph) for ph in d.photos.all()],
     }
 
 
@@ -49,7 +35,7 @@ def person_json(person):
 
 
 def places_query():
-    return Place.objects.prefetch_related('labels', 'ratings', 'photos')
+    return Place.objects.prefetch_related('labels', 'ratings')
 
 
 def bootstrap():
@@ -61,6 +47,6 @@ def bootstrap():
         'people': [person_json(p) for p in Person.objects.all()],
         'options': options,
         'places': [place_json(p) for p in places_query()],
-        'dishes': [dish_json(d) for d in Dish.objects.prefetch_related('photos')],
+        'dishes': [dish_json(d) for d in Dish.objects.all()],
         'collections': [collection_json(c) for c in Collection.objects.prefetch_related('entries')],
     }

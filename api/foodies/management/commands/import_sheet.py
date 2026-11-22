@@ -1,7 +1,7 @@
 """Import CSV exports of the sheet's "Food List", "Dishes" and "Master" tabs into Postgres.
 
 Re-runnable: places and dishes are matched by their App ID / Dish ID, so a second run updates rows instead of
-duplicating them. Photos are recorded by Drive file ID only; copying them to the bucket comes in Phase 3.
+duplicating them. The sheet's Photos columns are ignored: the new app has no photos for now (D57).
 Everything runs in one transaction: any error rolls the whole import back, and --dry-run always does.
 
     python manage.py import_sheet --people "Name1,Name2" --places food-list.csv --dishes dishes.csv --master master.csv
@@ -17,7 +17,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from foodies.clean import split_list
-from foodies.models import AuditLog, Dish, Label, MasterOption, Person, Photo, Place, PlaceRating
+from foodies.models import AuditLog, Dish, Label, MasterOption, Person, Place, PlaceRating
 
 # Old Indonesian headers (apps-script/src/Setup.js OLD_HEADERS), for sheets where renameHeadersToEnglish has not run.
 OLD_HEADERS = {
@@ -125,7 +125,7 @@ class Command(BaseCommand):
         names = [n.strip() for n in opts['people'].split(',') if n.strip()]
         if len(names) != 2:
             raise CommandError('--people must hold two names separated by a comma')
-        self.counts = {'places': 0, 'ratings': 0, 'dishes': 0, 'photos': 0, 'options': 0, 'labels': 0}
+        self.counts = {'places': 0, 'ratings': 0, 'dishes': 0, 'options': 0, 'labels': 0}
         self.warnings = []
         with transaction.atomic():
             people = self.import_people(names)
@@ -193,7 +193,6 @@ class Command(BaseCommand):
                 PlaceRating.objects.update_or_create(place=place, person=person, defaults={
                     'score': score, 'review': row.get(f'Review ({person.name})', '')})
                 self.counts['ratings'] += 1
-            self.photos(row.get('Photos'), place=place)
 
     def import_dishes(self, path):
         headers, rows = read_csv(path)
@@ -215,16 +214,11 @@ class Command(BaseCommand):
             added = to_datetime(row.get('Added At'))
             if added:
                 fields['added_at'] = added
-            dish, _ = Dish.objects.update_or_create(id=dish_id, defaults=fields)
+            Dish.objects.update_or_create(id=dish_id, defaults=fields)
             self.counts['dishes'] += 1
-            self.photos(row.get('Photos'), dish=dish)
 
     def label(self, name):
         label, created = Label.for_name(name)
         self.counts['labels'] += created
         return label
 
-    def photos(self, cell, **owner):
-        for position, drive_id in enumerate(split_list(cell)):
-            Photo.objects.update_or_create(drive_id=drive_id, **owner, defaults={'position': position})
-            self.counts['photos'] += 1

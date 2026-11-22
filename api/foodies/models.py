@@ -137,33 +137,6 @@ class Dish(models.Model):
         return self.name
 
 
-class Photo(models.Model):
-    """An own photo of a place or a dish (D44). `key` / `thumb_key` are Cloud Storage object names (Phase 3);
-    `drive_id` is the source file in the old Drive folder, kept until the photo is copied to the bucket."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    place = models.ForeignKey(Place, on_delete=models.CASCADE, null=True, blank=True, related_name='photos')
-    dish = models.ForeignKey(Dish, on_delete=models.CASCADE, null=True, blank=True, related_name='photos')
-    position = models.PositiveSmallIntegerField(default=0)  # 0 = cover
-    key = models.CharField(max_length=300, blank=True)
-    thumb_key = models.CharField(max_length=300, blank=True)
-    drive_id = models.CharField(max_length=200, blank=True)
-    added_at = models.DateTimeField(default=timezone.now)
-
-    class Meta:
-        db_table = 'photos'
-        ordering = ['position']
-        constraints = [
-            models.CheckConstraint(
-                condition=Q(place__isnull=False, dish__isnull=True) | Q(place__isnull=True, dish__isnull=False),
-                name='photo_has_one_owner',
-            ),
-        ]
-
-    def __str__(self):
-        return f'Photo {self.position} of {self.place or self.dish}'
-
-
 class PlacesUsage(models.Model):
     """Places API spend counter (D7): one row per day ("2026-11-22") and per month ("2026-11")."""
 

@@ -6,13 +6,11 @@ from django.db.models import F, Max
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
-from django.conf import settings
-
-from foodies import payload, places as google_places, storage
+from foodies import payload, places as google_places
 from foodies.auth import ApiError, api, issue_token, person_for_email, verify_google_credential
 from foodies.clean import (OPTION_FIELDS, clean_collection, clean_dish, clean_place_changes, clean_ratings,
                            text)
-from foodies.models import (AuditLog, Collection, CollectionPlace, Dish, Label, MasterOption, Person, Photo, Place,
+from foodies.models import (AuditLog, Collection, CollectionPlace, Dish, Label, MasterOption, Person, Place,
                             PlaceRating)
 
 log = logging.getLogger(__name__)
@@ -224,10 +222,8 @@ def dish_detail(request, dish_id):
         dish = get_object(Dish, dish_id, lock=True)
         place = dish.place
         if request.method == 'DELETE':
-            keys = [k for ph in dish.photos.all() for k in (ph.key, ph.thumb_key)]
             dish.delete()
             audit(request.person, 'delete', 'dish', dish_id, {'name': dish.name, 'place': str(place.pk)})
-            transaction.on_commit(lambda: storage.delete_objects(keys))
             return {'bestDish': sync_best_dish(place)}
         fields = clean_dish({**payload.dish_json(dish), **request.data})
         diff = {f: [getattr(dish, f), v] for f, v in fields.items() if getattr(dish, f) != v}
@@ -306,70 +302,3 @@ def collection_place(request, collection_id, place_id):
             audit(request.person, 'remove', 'collection', collection.pk, {'place': str(place_id)})
     return {'collection': collection_out(collection.pk)}
 
-
-# --- photos ----------------------------------------------------------------------------------------------------
-
-def photo_owner(data, lock=False):
-    """The place or dish a photo belongs to: exactly one of `place` / `dish`."""
-    if bool(data.get('place')) == bool(data.get('dish')):
-        raise ApiError('Give either place or dish')
-    return {'place': get_object(Place, data['place'], lock)} if data.get('place') else \
-        {'dish': get_object(Dish, data['dish'], lock)}
-
-
-def photos_out(owner):
-    return [payload.photo_json(ph) for ph in Photo.objects.filter(**owner).order_by('position')]
-
-
-def check_photo_room(owner):
-    if Photo.objects.filter(**owner).count() >= settings.MAX_PHOTOS:
-        raise ApiError(f'Up to {settings.MAX_PHOTOS} photos each')
-
-
-@api('POST')
-def photo_upload_url(request):
-    """Step 1 of adding a photo: two signed PUT URLs (full + thumb) for a new, server-chosen photo id."""
-    owner = photo_owner(request.data)
-    check_photo_room(owner)
-    photo_id = uuid.uuid4()
-    full, thumb = storage.keys_for(photo_id)
-    headers = storage.upload_headers()
-    return {'photoId': str(photo_id), 'expiresInMinutes': storage.UPLOAD_MINUTES,
-            'upload': {'url': storage.signed_put_url(full), 'headers': headers},
-            'thumbUpload': {'url': storage.signed_put_url(thumb), 'headers': headers}}
-
-
-@api('POST')
-def photos(request):
-    """Step 2: after both PUTs succeeded, checks the uploads and adds the photo at the end (the first is the cover)."""
-    try:
-        photo_id = uuid.UUID(str(request.data.get('photoId')))
-    except ValueError as e:
-        raise ApiError('Bad photo id') from e
-    full, thumb = storage.keys_for(photo_id)
-    photo_owner(request.data)  # 404 early, before touching the bucket
-    storage.check_uploaded(full)
-    storage.check_uploaded(thumb)
-    with transaction.atomic():
-        owner = photo_owner(request.data, lock=True)
-        check_photo_room(owner)
-        if Photo.objects.filter(pk=photo_id).exists():
-            raise ApiError('This photo was already added')
-        top = Photo.objects.filter(**owner).aggregate(m=Max('position'))['m']
-        photo = Photo.objects.create(id=photo_id, key=full, thumb_key=thumb,
-                                     position=0 if top is None else top + 1, **owner)
-        kind, obj = next(iter(owner.items()))
-        audit(request.person, 'add', 'photo', photo.pk, {kind: str(obj.pk)})
-    return {'photo': payload.photo_json(photo), 'photos': photos_out(owner)}
-
-
-@api('DELETE')
-def photo_detail(request, photo_id):
-    with transaction.atomic():
-        photo = get_object(Photo, photo_id, lock=True)
-        owner = {'place': photo.place} if photo.place_id else {'dish': photo.dish}
-        keys = [photo.key, photo.thumb_key]
-        photo.delete()
-        audit(request.person, 'delete', 'photo', photo_id, {'drive_id': photo.drive_id, 'key': photo.key})
-        transaction.on_commit(lambda: storage.delete_objects(keys))
-    return {'photos': photos_out(owner)}

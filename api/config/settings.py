@@ -69,11 +69,6 @@ PLACES_DAILY_LIMIT = int(os.environ.get('DAILY_LIMIT', '50'))
 PLACES_MONTHLY_LIMIT = int(os.environ.get('MONTHLY_LIMIT', '900'))
 LOOKUP_CACHE_SECONDS = 600
 
-# Own photos (D44): bucket name (per environment); limits as in the live app (MAX_PHOTOS, MAX_PHOTO_BYTES).
-PHOTO_BUCKET = os.environ.get('PHOTO_BUCKET', '')
-MAX_PHOTOS = 5  # per place and per dish
-MAX_PHOTO_BYTES = int(1.5 * 1024 * 1024)
-
 DATABASES = {'default': dj_database_url.parse(os.environ['DATABASE_URL'], conn_max_age=60, conn_health_checks=True)}
 # Neon's pooled connection (PgBouncer, transaction mode) cannot keep server-side cursors open between queries.
 DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True

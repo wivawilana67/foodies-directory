@@ -73,6 +73,18 @@ jobs:
           gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
           docker build -t "$IMAGE" api
           docker push "$IMAGE"
+      # Migrations run once per deploy as a Cloud Run job, before the new version takes traffic, so two
+      # starting instances never migrate at the same time. A failed migration stops the deploy.
+      - name: Run database migrations
+        run: |
+          gcloud run jobs deploy foodies-migrate --quiet \
+            --project="$PROJECT" --region="$REGION" \
+            --image="$REGION-docker.pkg.dev/$PROJECT/foodies/api:$GITHUB_SHA" \
+            --service-account="api-runtime@$PROJECT.iam.gserviceaccount.com" \
+            --command=python --args=manage.py,migrate,--noinput \
+            --max-retries=0 --task-timeout=600s --memory=512Mi \
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest,DJANGO_SECRET_KEY=DJANGO_SECRET_KEY:latest
+          gcloud run jobs execute foodies-migrate --quiet --project="$PROJECT" --region="$REGION" --wait
       - name: Deploy to Cloud Run
         run: |
           gcloud run deploy foodies-api --quiet \

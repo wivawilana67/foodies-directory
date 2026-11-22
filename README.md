@@ -167,7 +167,7 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 
 ## Local development (new stack, Docker only)
 
-The replatform (`docs/decisions.md` D39–D52) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
+The replatform (`docs/decisions.md` D39–D53) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
 
 ```bash
 sudo apt update && sudo apt install -y docker.io docker-compose-v2
@@ -181,6 +181,9 @@ Then, from the repo root:
 | Start database, API and web | `docker compose up` → http://localhost:5173 (API on http://localhost:8000) |
 | API tests | `docker compose run --rm api python manage.py test` |
 | Front-end type-check + build | `docker compose run --rm web npm run build` |
+| Create / apply database migrations | `docker compose run --rm api python manage.py makemigrations` / `… migrate` |
+| Admin site (table view of all data) | `docker compose run --rm api python manage.py createsuperuser` once, then http://localhost:8000/api/admin/ |
+| Import the sheet (CSV exports of Food List, Dishes, Master in `api/`) | `docker compose run --rm api python manage.py import_sheet --people "Name1,Name2" --places food-list.csv --dishes dishes.csv --master master.csv` (add `--dry-run` to check first) |
 | Stop / wipe the local database | `docker compose down` / `docker compose down -v` |
 
 Cloud setup (projects, buckets, Neon, keys) is done in the browser and in Google Cloud Shell, which already has `gcloud`, so nothing is installed locally for it either. Deploys run in GitHub Actions and stay off until the repository variable `CLOUD_DEPLOY` is set to `on`.

@@ -16,3 +16,6 @@ frontend/dist/
 __pycache__/
 .firebaserc
 .firebase/
+
+# Sheet exports for import_sheet hold personal data (names, reviews); never commit them
+*.csv

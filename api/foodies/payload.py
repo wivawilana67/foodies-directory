@@ -1,9 +1,17 @@
 """JSON shapes sent to the phone (camelCase for the React app). Querysets passed in should prefetch what they read."""
+from foodies import storage
 from foodies.models import Collection, Dish, MasterOption, Person, Place
 
 
 def photo_json(photo):
-    return {'id': str(photo.id), 'position': photo.position, 'key': photo.key, 'thumbKey': photo.thumb_key}
+    """URLs the phone shows: the bucket copy, or until copy_drive_photos has run, the old Drive thumbnail URL
+    (undocumented, D36)."""
+    if photo.key:
+        url, thumb = storage.public_url(photo.key), storage.public_url(photo.thumb_key or photo.key)
+    else:
+        url = f'https://drive.google.com/thumbnail?id={photo.drive_id}&sz=w1600'
+        thumb = f'https://drive.google.com/thumbnail?id={photo.drive_id}&sz=w320'
+    return {'id': str(photo.id), 'position': photo.position, 'url': url, 'thumbUrl': thumb}
 
 
 def place_json(p):

@@ -63,6 +63,12 @@ GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
 ALLOWED_EMAILS = [e.strip().lower() for e in os.environ.get('ALLOWED_EMAILS', '').split(',') if e.strip()]
 APP_TOKEN_MAX_AGE = 30 * 24 * 3600  # seconds a signed app token stays valid
 
+# Places API (New) (D6, D7): server key from Secret Manager; lookups refused past these counts (Asia/Jakarta days).
+PLACES_API_KEY = os.environ.get('PLACES_API_KEY', '')
+PLACES_DAILY_LIMIT = int(os.environ.get('DAILY_LIMIT', '50'))
+PLACES_MONTHLY_LIMIT = int(os.environ.get('MONTHLY_LIMIT', '900'))
+LOOKUP_CACHE_SECONDS = 600
+
 DATABASES = {'default': dj_database_url.parse(os.environ['DATABASE_URL'], conn_max_age=60, conn_health_checks=True)}
 # Neon's pooled connection (PgBouncer, transaction mode) cannot keep server-side cursors open between queries.
 DATABASES['default']['DISABLE_SERVER_SIDE_CURSORS'] = True

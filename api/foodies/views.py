@@ -6,7 +6,7 @@ from django.db.models import F, Max
 from django.http import JsonResponse
 from django.views.decorators.http import require_GET
 
-from foodies import payload
+from foodies import payload, places as google_places
 from foodies.auth import ApiError, api, issue_token, person_for_email, verify_google_credential
 from foodies.clean import (OPTION_FIELDS, clean_collection, clean_dish, clean_place_changes, clean_ratings,
                            text)
@@ -132,22 +132,48 @@ def bootstrap(request):
 
 
 @api('POST')
+def lookup(request):
+    """Phone "Add place": a pasted Maps / share.google link or a typed name -> up to 5 Google results."""
+    return {'places': google_places.lookup(request.data.get('input'))}
+
+
+def google_values(google):
+    """Model fields filled from a Google result: defaults for the user fields, plus the app-owned fields."""
+    return {
+        'name': google['name'], 'country': google['country'], 'city': google['city'],
+        'district': google['district'], 'maps_link': google['mapsUrl'], 'google_place_id': google['placeId'],
+        'lat': google['lat'], 'lng': google['lng'], 'address': google['address'],
+        'google_category': google['googleCategory'],
+    }
+
+
+@api('POST')
 def places(request):
-    """Adds a place typed by hand. Adding from a Google lookup comes with the Places port (Phase 3b)."""
-    if request.data.get('placeId'):
-        raise ApiError('Adding a place from Google is not available yet')
+    """Adds a place: from a lookup result (`placeId`; Google data comes from the server's cache, never from the
+    phone, D12) or typed by hand. The phone's non-empty fields win over Google's defaults. A place already in the
+    directory (same Google place ID) is not added twice: the reply says `duplicate` and returns it."""
     fields = clean_place_changes(request.data.get('fields', {}))
     ratings = clean_ratings_for(request.data)
     labels = fields.pop('labels', [])
-    if not fields.get('name'):
+    place_id = request.data.get('placeId')
+    values = {}
+    if place_id:
+        existing = Place.objects.filter(google_place_id=place_id).first()
+        if existing:
+            return {'duplicate': True, 'place': place_out(existing.pk)}
+        values = {**google_values(google_places.cached_or_fetched(str(place_id))), 'lookup_status': 'added'}
+    values.update({f: v for f, v in fields.items() if v != ''})
+    values.setdefault('lookup_status', 'manual')
+    if not values.get('name'):
         raise ApiError('Name is required')
     with transaction.atomic():
-        place = Place.objects.create(lookup_status='manual', **fields)
+        place = Place.objects.create(**values)
         set_labels(place, labels)
         save_ratings(place, ratings)
-        append_options(fields)
-        audit(request.person, 'create', 'place', place.pk, {**fields, 'labels': labels})
-    return {'place': place_out(place.pk)}
+        append_options(values)
+        audit(request.person, 'create', 'place', place.pk,
+              {**{k: v for k, v in values.items() if k not in ('lat', 'lng')}, 'labels': labels})
+    return {'duplicate': False, 'place': place_out(place.pk)}
 
 
 @api('PATCH')

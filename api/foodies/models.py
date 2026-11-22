@@ -179,6 +179,21 @@ class PlacesUsage(models.Model):
         return f'{self.period}: {self.count}'
 
 
+class LookupCache(models.Model):
+    """Google data of recent lookup results, so adding one needs only its placeId (D12) and no second paid call.
+    Rows older than LOOKUP_CACHE_SECONDS are ignored and cleaned up on the next lookup."""
+
+    place_id = models.CharField(max_length=300, unique=True)
+    data = models.JSONField()
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'lookup_cache'
+
+    def __str__(self):
+        return self.place_id
+
+
 class AuditLog(models.Model):
     """Every write: who changed what, with old and new values (the Sheet's version history, D42)."""
 

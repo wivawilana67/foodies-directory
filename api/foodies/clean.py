@@ -1,9 +1,9 @@
 """Server-side input checks, ported from the Apps Script (cleanValue_ / cleanLabels_ in Sheet.js, cleanDish_ in
-Dishes.js, isMapsUrl_ in MapsLink.js) with the same limits and messages. The phone never decides what is valid."""
+Dishes.js) with the same limits and messages. The phone never decides what is valid."""
 import re
-from urllib.parse import urlsplit
 
 from foodies.auth import ApiError
+from foodies.maps_link import is_maps_url
 
 # Place fields the phone may set (EDITABLE_FIELDS), as API name -> model field. Ratings are sent separately.
 PLACE_FIELDS = {
@@ -30,20 +30,6 @@ def text(value, limit, label):
     if len(s) > limit:
         raise ApiError(f'{label} is too long')
     return s
-
-
-def is_maps_url(url):
-    try:
-        parts = urlsplit(str(url))
-    except ValueError:
-        return False
-    if parts.scheme not in ('http', 'https'):
-        return False
-    host, path = (parts.hostname or '').lower(), parts.path or '/'
-    return (host == 'maps.app.goo.gl'
-            or (host == 'goo.gl' and path.startswith('/maps'))
-            or bool(re.fullmatch(r'maps\.google\.[a-z.]+', host))
-            or (bool(re.fullmatch(r'(www\.)?google\.[a-z.]+', host)) and path.startswith('/maps')))
 
 
 def clean_labels(value):

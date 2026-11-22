@@ -9,6 +9,7 @@ urlpatterns = [
     path('api/auth/me', views.me),
     path('api/auth/sign-out-everywhere', views.sign_out_everywhere),
     path('api/bootstrap', views.bootstrap),
+    path('api/lookup', views.lookup),
     path('api/places', views.places),
     path('api/places/<str:place_id>', views.place_detail),
     path('api/dishes', views.dishes),

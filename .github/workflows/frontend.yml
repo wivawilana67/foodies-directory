@@ -53,6 +53,8 @@ jobs:
           node-version: 24
       - name: Build
         working-directory: frontend
+        env:
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}  # public by design: identifies the sign-in client
         run: |
           npm ci
           npm run build

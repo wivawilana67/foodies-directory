@@ -131,6 +131,6 @@ App tokens are signed with `DJANGO_SECRET_KEY` and expire after 30 days (`APP_TO
 `.github/workflows/api.yml`: tests on every PR and push touching `api/`. When the repository variable `CLOUD_DEPLOY` is `on`, a push to `develop` deploys to the **dev** project and `master` to **prod** (GitHub environments `dev` / `prod`, Workload Identity Federation, runtime service account `api-runtime`). Each deploy:
 1. Builds and pushes the image to Artifact Registry `foodies`.
 2. Runs `python manage.py migrate` as the Cloud Run job `foodies-migrate` (same image and secrets) and waits. A failed migration stops the deploy, so the old version keeps serving.
-3. Deploys the Cloud Run service `foodies-api`.
+3. Deploys the Cloud Run service `foodies-api` with env vars `GOOGLE_CLIENT_ID` and `DJANGO_CSRF_TRUSTED_ORIGINS` (from the GitHub environment's variables) and secrets `DATABASE_URL`, `DJANGO_SECRET_KEY`, `ALLOWED_EMAILS`, `PLACES_API_KEY` (Secret Manager). A missing secret fails the deploy; the old version keeps serving.
 
 Keep this file current (root `CLAUDE.md` § 4).

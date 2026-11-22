@@ -1,8 +1,8 @@
 # frontend — Developer and Agent Guide
 
-The new phone app (replatform, `docs/decisions.md` D39–D52): React + TypeScript + Vite, built to static files and served by Firebase Hosting, which sends `/api/**` to Cloud Run (`firebase.json`). **Phase 1 scaffold**: one page that shows whether `/api/health` answers. The live app is still `web/` until the switch-over; its rules (iPhone Safari without install, location stays on the phone, Sticker design) carry over.
+The new phone app (replatform, `docs/decisions.md` D39–D54): React + TypeScript + Vite, built to static files and served by Firebase Hosting, which sends `/api/**` to Cloud Run (`firebase.json`). **Phase 1 scaffold**: one page that shows whether `/api/health` answers. The live app is still `web/` until the switch-over; its rules (iPhone Safari without install, location stays on the phone, Sticker design) carry over.
 
-Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.md` D39–D52 and `web/CLAUDE.md` (behaviour being ported).
+Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.md` D39–D54 and `web/CLAUDE.md` (behaviour being ported).
 
 ---
 

@@ -12,6 +12,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
+# Admin CSS/JS for WhiteNoise. Settings need these two values to load; they are not used at build time.
+RUN DJANGO_SECRET_KEY=collectstatic DATABASE_URL=postgres://unused@localhost/unused \
+    python manage.py collectstatic --noinput
 
 RUN useradd --create-home --uid 1000 app
 USER app

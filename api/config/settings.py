@@ -23,6 +23,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -44,9 +45,23 @@ TEMPLATES = [{
     ]},
 }]
 
-# Under /api/ so Firebase Hosting's /api/** rewrite reaches them too. runserver serves admin CSS locally (DEBUG);
-# serving it on Cloud Run is open (docs/decisions.md D53).
+# Admin CSS/JS: collected into the image (Dockerfile) and served by WhiteNoise, under /api/ so Firebase Hosting's
+# /api/** rewrite reaches them too.
 STATIC_URL = '/api/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Firebase Hosting forwards only a cookie named __session to Cloud Run, so the admin's session uses that name and
+# keeps its CSRF token in the session instead of a separate cookie. The phone API uses a header token, not cookies.
+SESSION_COOKIE_NAME = '__session'
+CSRF_USE_SESSIONS = True
+SESSION_COOKIE_SECURE = CSRF_COOKIE_SECURE = not DEBUG
+CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',') if o]
+
+# Google Sign-In (D43): the OAuth client ID the phone signs in with, and the two allowed emails in Person
+# position order ("first@gmail.com,second@gmail.com"). Sign-in answers "not configured" until both are set.
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID', '')
+ALLOWED_EMAILS = [e.strip().lower() for e in os.environ.get('ALLOWED_EMAILS', '').split(',') if e.strip()]
+APP_TOKEN_MAX_AGE = 30 * 24 * 3600  # seconds a signed app token stays valid
 
 DATABASES = {'default': dj_database_url.parse(os.environ['DATABASE_URL'], conn_max_age=60, conn_health_checks=True)}
 # Neon's pooled connection (PgBouncer, transaction mode) cannot keep server-side cursors open between queries.

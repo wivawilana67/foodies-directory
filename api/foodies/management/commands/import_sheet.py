@@ -16,6 +16,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 
+from foodies.clean import split_list
 from foodies.models import AuditLog, Dish, Label, MasterOption, Person, Photo, Place, PlaceRating
 
 # Old Indonesian headers (apps-script/src/Setup.js OLD_HEADERS), for sheets where renameHeadersToEnglish has not run.
@@ -107,15 +108,6 @@ def to_datetime(value):
     except ValueError:
         return None
     return dt if timezone.is_aware(dt) else timezone.make_aware(dt)
-
-
-def split_list(value):
-    """Comma-separated cell -> unique, non-blank items, first spelling wins (cleanLabels_ rule)."""
-    out = []
-    for item in (s.strip() for s in (value or '').split(',')):
-        if item and item.lower() not in (o.lower() for o in out):
-            out.append(item)
-    return out
 
 
 class Command(BaseCommand):
@@ -228,10 +220,8 @@ class Command(BaseCommand):
             self.photos(row.get('Photos'), dish=dish)
 
     def label(self, name):
-        label = Label.objects.filter(name__iexact=name).first()
-        if not label:
-            label = Label.objects.create(name=name)
-            self.counts['labels'] += 1
+        label, created = Label.for_name(name)
+        self.counts['labels'] += created
         return label
 
     def photos(self, cell, **owner):

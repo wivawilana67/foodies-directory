@@ -19,3 +19,6 @@ __pycache__/
 
 # Sheet exports for import_sheet hold personal data (names, reviews); never commit them
 *.csv
+
+# Output of collectstatic if run locally (the image runs it itself)
+api/staticfiles/

@@ -16,6 +16,7 @@ class Person(models.Model):
     name = models.CharField(max_length=100)
     email = models.EmailField(unique=True, null=True, blank=True)  # Google Sign-In email, set in Phase 3
     position = models.PositiveSmallIntegerField(unique=True)
+    token_version = models.PositiveIntegerField(default=1)  # bump to sign this person out on every device
 
     class Meta:
         db_table = 'people'
@@ -54,6 +55,12 @@ class Label(models.Model):
 
     def __str__(self):
         return self.name
+
+    @classmethod
+    def for_name(cls, name):
+        """The label with this name ignoring case, or a new one. Returns (label, created)."""
+        label = cls.objects.filter(name__iexact=name).first()
+        return (label, False) if label else (cls.objects.create(name=name), True)
 
 
 class Place(models.Model):

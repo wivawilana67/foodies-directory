@@ -102,7 +102,7 @@ App tokens are signed with `DJANGO_SECRET_KEY` and expire after 30 days (`APP_TO
 
 | Task | Command |
 |---|---|
-| Run API + database + web | `docker compose up` |
+| Run API + database + web | `docker compose up` (the `api` service runs `migrate` before `runserver`; `docker compose run` replaces that command, so it does not) |
 | Tests | `docker compose run --rm api python manage.py test` |
 | After changing `models.py` | `docker compose run --rm api python manage.py makemigrations` (commit the new file), then `… migrate` |
 | Check models and migrations match | `docker compose run --rm api python manage.py makemigrations --check --dry-run` |

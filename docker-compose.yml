@@ -19,7 +19,8 @@ services:
 
   api:
     build: ./api
-    command: python manage.py runserver 0.0.0.0:8000
+    # Tables are created / updated on every start, as the foodies-migrate job does on each cloud deploy.
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
     environment:
       DATABASE_URL: postgres://foodies:foodies@db:5432/foodies
       DJANGO_SECRET_KEY: local-dev-only

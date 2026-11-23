@@ -178,7 +178,7 @@ Then, from the repo root:
 
 | Task | Command |
 |---|---|
-| Start database, API and web | `docker compose up` → http://localhost:5173 (API on http://localhost:8000) |
+| Start database, API and web | `docker compose up` → http://localhost:5173 (API on http://localhost:8000); the API applies migrations on every start, so a wiped database gets its tables back |
 | API tests | `docker compose run --rm api python manage.py test` |
 | Front-end type-check + build | `docker compose run --rm web npm run build` |
 | Create / apply database migrations | `docker compose run --rm api python manage.py makemigrations` / `… migrate` |
@@ -186,7 +186,7 @@ Then, from the repo root:
 | Import the sheet (CSV exports of Food List, Dishes, Master in `api/`) | `docker compose run --rm api python manage.py import_sheet --people "Name1,Name2" --places food-list.csv --dishes dishes.csv --master master.csv` (add `--dry-run` to check first) |
 | Sample data to build screens against (empty local database only) | `docker compose run --rm api python manage.py seed_sample` |
 | Sign in locally (no Google sign-in in Docker) | `docker compose run --rm api python manage.py dev_token` (add `--person 2` for the second person), then paste the printed token into **Local dev token** on http://localhost:5173 |
-| Stop / wipe the local database | `docker compose down` / `docker compose down -v` |
+| Stop / wipe the local database | `docker compose down` / `docker compose down -v` (then `docker compose up -d` recreates the tables; refill with `seed_sample` or `import_sheet`) |
 
 Cloud setup (projects, Neon, keys) is done in the browser and in Google Cloud Shell, which already has `gcloud`, so nothing is installed locally for it either. Deploys run in GitHub Actions and stay off until the repository variable `CLOUD_DEPLOY` is set to `on`.
 

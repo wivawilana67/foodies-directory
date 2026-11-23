@@ -19,7 +19,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 ├── AGENTS.md                   # Points other AI agents to CLAUDE.md (also in apps-script/ and web/)
 ├── README.md                   # Human overview: setup, deploy, install, Business Flow, Data Flow
 ├── package.json                # Only dependency (clasp) + npm deploy scripts for apps-script/
-├── docker-compose.yml          # Local dev for the new stack: db (Postgres 17), api (Django), web (Vite) — Docker only; placeholder ALLOWED_EMAILS for dev_token
+├── docker-compose.yml          # Local dev for the new stack: db (Postgres 17), api (Django), web (Vite) — Docker only; api migrates on start; placeholder ALLOWED_EMAILS for dev_token
 ├── firebase.json               # Firebase Hosting: serves frontend/dist, rewrites /api/** to Cloud Run foodies-api
 ├── .gitignore                  # node_modules/, every real .clasp*.json, .env*, frontend/dist, .firebaserc, *.csv (sheet exports), local Claude settings
 ├── .github/

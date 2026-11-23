@@ -1,7 +1,11 @@
 // Backend calls and on-device storage. The backend URL and token are entered on each phone and
 // stored only in this browser; they never go into the repo.
 
-const KEYS = { url: 'foodies.backendUrl', token: 'foodies.token', cache: 'foodies.cache' };
+// The test copy of the app lives under /test/ on the same site; it keeps its own settings and cache.
+// The theme key is shared: the inline script in index.html reads it before the modules load.
+export const IS_TEST = location.pathname.includes('/test/');
+const PREFIX = IS_TEST ? 'foodies-test.' : 'foodies.';
+const KEYS = { url: `${PREFIX}backendUrl`, token: `${PREFIX}token`, cache: `${PREFIX}cache`, theme: 'foodies.theme' };
 const BACKEND_PATTERN = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/;
 
 function read(key) {
@@ -29,6 +33,17 @@ export function saveSettings(url, token) {
   if (!BACKEND_PATTERN.test(url)) throw new Error('The backend URL must look like https://script.google.com/macros/s/…/exec');
   if (token.length < 16) throw new Error('The token looks too short');
   if (!write(KEYS.url, url) || !write(KEYS.token, token)) throw new Error('This browser blocked saving settings');
+}
+
+const THEMES = ['system', 'light', 'dark'];
+
+export function getTheme() {
+  const theme = read(KEYS.theme);
+  return THEMES.includes(theme) ? theme : 'system';
+}
+
+export function saveTheme(theme) {
+  if (THEMES.includes(theme)) write(KEYS.theme, theme);
 }
 
 // Last `list` response {places, dishes, options, people}; missing parts are filled in by the caller.

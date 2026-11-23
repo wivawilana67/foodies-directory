@@ -48,9 +48,54 @@ function checkColumns() {
     });
 }
 
-// For a "Food List" that already has data (a new column such as Labels, or the old sheet at migration):
-// appends every configured header that is missing, after the last column. Existing columns are untouched.
+// For tabs that already have data (a new column such as Photos, or the old sheet at migration): appends every
+// configured header missing from "Food List" and "Dishes", after the last column. Existing columns are untouched.
 function addMissingColumns() {
-  const added = appendHeaders_(openTab_(SHEET_NAME), headerList_(Object.assign(placeFields_(), APP_FIELDS)));
-  Logger.log('Added columns: %s', added.length ? added.join(', ') : 'none');
+  [[SHEET_NAME, Object.assign(placeFields_(), APP_FIELDS)], [DISHES_SHEET, DISH_FIELDS]].forEach(([name, fields]) => {
+    const added = appendHeaders_(openTab_(name), headerList_(fields));
+    Logger.log('%s: added %s', name, added.length ? added.join(', ') : 'none');
+  });
+}
+
+// Old Indonesian header -> English header, for "Food List" and "Master" (D51).
+const OLD_HEADERS = {
+  'Nama Resto': 'Name',
+  'Negara': 'Country',
+  'Kota': 'City',
+  'Lokasi': 'District',
+  'Jalan / Patokan': 'Landmark',
+  'Range Harga (Per Orang)': 'Price Range (Per Person)',
+  'Tipe Foodies': 'Type',
+  'Genre Foodies': 'Genre',
+  'Jenis Foodies': 'Category',
+  'Link Instagram': 'Instagram Link',
+  'Link Google': 'Google Maps Link',
+};
+
+// Once per spreadsheet, right after pushing the code that expects English headers: renames the old Indonesian
+// header cells in "Food List" and "Master". Only header cells change; data rows are untouched. Safe to run again.
+function renameHeadersToEnglish() {
+  [SHEET_NAME, MASTER_SHEET].forEach((name) => {
+    const sheet = openTab_(name);
+    const renamed = [];
+    readHeaders_(sheet).forEach((h, i) => {
+      if (!OLD_HEADERS[h]) return;
+      sheet.getRange(HEADER_ROW, i + 1).setValue(OLD_HEADERS[h]);
+      renamed.push(h + ' -> ' + OLD_HEADERS[h]);
+    });
+    Logger.log('%s: renamed %s', name, renamed.join(', ') || 'none');
+  });
+}
+
+// Once, before the first photo: creates the "Foodies Photos - <sheet name>" Drive folder and stores its ID in PHOTO_FOLDER_ID.
+// The first run asks for Drive access.
+function setupPhotos() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty(PROP.photoFolder)) {
+    Logger.log('PHOTO_FOLDER_ID is already set');
+    return;
+  }
+  const name = 'Foodies Photos - ' + spreadsheet_().getName(); // live and test sheets get separate folders
+  props.setProperty(PROP.photoFolder, DriveApp.createFolder(name).getId());
+  Logger.log('Created the "%s" folder in your Drive', name);
 }

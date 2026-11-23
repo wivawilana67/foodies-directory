@@ -112,7 +112,7 @@ function appCells_(place) {
   };
 }
 
-// "Name - Country (Patokan)", the old sheet's format.
+// "Name - Country (Landmark)", the old sheet's format.
 function uniqueName_(v) {
   return v.name + (v.country ? ' - ' + v.country : '') + (v.landmark ? ' (' + v.landmark + ')' : '');
 }
@@ -178,7 +178,7 @@ function readOptions_() {
   return options;
 }
 
-// Appends new Tipe / Genre / Jenis values to their "Master" list. Call inside the lock.
+// Appends new Type / Genre / Category values to their "Master" list. Call inside the lock.
 function appendOptions_(values, options) {
   const fresh = OPTION_FIELDS.filter((f) => values[f] && options[f].indexOf(values[f]) < 0);
   if (!fresh.length) return;

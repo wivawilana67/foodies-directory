@@ -1,16 +1,39 @@
-// Entry point: loads the list, wires the bottom tabs, Near me, settings and install, and the Back button.
+// Entry point: loads the list, wires the bottom tabs, Near me, settings (incl. Theme) and install, and the Back button.
 
-import { call, getSettings, saveSettings, readCache, writeCache } from './api.js';
+import { call, getSettings, saveSettings, readCache, writeCache, getTheme, saveTheme, IS_TEST } from './api.js';
 import { getPosition } from './geo.js';
 import { state, onChange, changed } from './state.js';
 import { $, show } from './ui.js';
 import { renderFilters, renderList, copyList } from './list.js';
 import { renderPlace } from './place.js';
+import { renderGallery } from './photos.js';
 import { initDishes } from './dishes.js';
 import { initAdd } from './add.js';
 
 const setStatus = (msg) => { $('status').textContent = msg; };
 const setSetupStatus = (msg) => { $('setup-status').textContent = msg; };
+const THEME_COLORS = { light: '#fffdf7', dark: '#17151f' }; // --bg in styles.css
+
+// System removes data-theme so the CSS media query decides; the theme-color metas follow the choice.
+function applyTheme(theme) {
+  if (theme === 'system') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+    meta.content = THEME_COLORS[theme === 'system' ? (meta.media.includes('dark') ? 'dark' : 'light') : theme];
+  });
+}
+
+function initTheme() {
+  const theme = getTheme();
+  applyTheme(theme);
+  document.querySelectorAll('input[name="theme"]').forEach((radio) => {
+    radio.checked = radio.value === theme;
+    radio.addEventListener('change', () => {
+      saveTheme(radio.value);
+      applyTheme(radio.value);
+    });
+  });
+}
 
 function apply(data) {
   state.places = data.places || [];
@@ -105,12 +128,17 @@ function initInstall() {
 }
 
 function init() {
+  if (IS_TEST) {
+    document.documentElement.dataset.env = 'test';
+    document.querySelector('.topbar h1').textContent = 'Foodies TEST';
+  }
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
   document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click', () => selectTab(b.dataset.tab)));
   document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => history.back()));
   window.addEventListener('popstate', (event) => {
     const view = event.state?.view || 'list';
     if (view === 'place') renderPlace();
+    if (view === 'photos') renderGallery();
     show(view);
   });
   $('open-setup').addEventListener('click', () => show('setup', true));
@@ -125,6 +153,7 @@ function init() {
   initAdd();
   initDishes();
   initInstall();
+  initTheme();
 
   const settings = getSettings();
   $('setup-url').value = settings.url;

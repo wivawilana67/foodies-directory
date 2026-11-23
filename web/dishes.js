@@ -3,6 +3,7 @@
 import { call } from './api.js';
 import { state, changed, placeById, dishesOf, upsert } from './state.js';
 import { $, el, text, show } from './ui.js';
+import { MAX_PHOTOS, photoIdsOf, photoImg, addPhotoButton } from './photos.js';
 
 const LIKED = { Yes: '👍', No: '👎' };
 let editing = null; // {place, dish}
@@ -21,6 +22,21 @@ export function dishList(p) {
   return el('div', {}, items.length ? el('ul', { className: 'dishes' }, ...items) : el('p', { className: 'muted', textContent: 'No dishes yet.' }), add);
 }
 
+function renderDishPhotos() {
+  const { dish } = editing;
+  if (!dish) {
+    $('dish-photos').replaceChildren(el('p', { className: 'muted', textContent: 'Save the dish first to add photos.' }));
+    return;
+  }
+  const current = state.dishes.find((d) => d.id === dish.id) || dish;
+  const ids = photoIdsOf(current);
+  const strip = ids.length ? el('div', { className: 'photo-strip' }, ...ids.map((id) => photoImg(id, 200, 'photo-small'))) : null;
+  const add = ids.length < MAX_PHOTOS
+    ? addPhotoButton('dish', dish.id, (msg) => { $('dish-status').textContent = msg; }, renderDishPhotos)
+    : el('p', { className: 'muted', textContent: `Up to ${MAX_PHOTOS} photos. Remove one from View photos on the place.` });
+  $('dish-photos').replaceChildren(...[strip, add].filter(Boolean));
+}
+
 function openDish(place, dish) {
   editing = { place, dish };
   $('dish-title').textContent = dish ? 'Edit dish' : `New dish at ${text(place.name)}`;
@@ -32,6 +48,7 @@ function openDish(place, dish) {
   $('dish-delete').hidden = !dish;
   $('dish-delete').textContent = 'Delete';
   $('dish-status').textContent = '';
+  renderDishPhotos();
   show('dish', true);
 }
 

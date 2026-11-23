@@ -20,13 +20,50 @@ State as of the handoff summary, session 2 (2026-11-14). "Verified" means seen i
 
 The rest of the list was not seen. SearchTextRequest per day is assumed to exist.
 
+- Budget "Foodies Budget" (seen 2026-11-21): monthly, Rp 50,000, applies to the whole billing account, alerts at 50%, 90% and 100%; spend cap status "Not applicable".
+- "Budgets & caps" offers real spend caps on projects and services, not just alerts: a cap pauses those services when exceeded and resets at the start of each month (page text, seen 2026-11-21).
+
+## Replatform: dev environment (set up 2026-11-21, from the owner's Cloud Shell output)
+
+The project ID and site address are kept out of this public file.
+
+- Neon project "foodies-directory" (AWS Singapore), database `foodies`, branches `production` and `dev`; role `app_dev` on `dev`.
+- Google Cloud project "Foodies Directory Dev", linked to the open billing account (same budget as above); Firebase added (Blaze); default Hosting site exists.
+- APIs enabled: Cloud Run, Artifact Registry, Secret Manager, IAM Credentials, STS, Firebase Hosting, Cloud Resource Manager.
+- Artifact Registry Docker repository `foodies` in `asia-southeast1`.
+- Service accounts `api-runtime` (no project roles; reads the two secrets) and `deployer` (`run.admin`, `artifactregistry.writer`, `firebasehosting.admin`, `serviceAccountUser` on `api-runtime`).
+- Secrets `DATABASE_URL` (Neon `dev`, pooled, `app_dev`) and `DJANGO_SECRET_KEY`, version 1 each.
+- Workload Identity pool `github`, provider `github-repo`, condition: this repository and `refs/heads/develop` only; `deployer` grants `workloadIdentityUser` to the repository.
+- GitHub: environment `dev` (branch `develop`) with `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `DEPLOYER_SA`; repository variable `CLOUD_DEPLOY=on`.
+- First deploy 2026-11-21 from `develop`: Cloud Run service `foodies-api` (`asia-southeast1`) and the Hosting site are live; `/api/health` through the site returns `{"ok": true}` (cold ~3 s, warm ~0.3 s). This also proves the WIF login, the secrets and their IAM bindings.
+- 2026-11-22: the Phase 2 deploy created the Cloud Run job `foodies-migrate` (runs `manage.py migrate` as `api-runtime` with the same secrets) and its first execution succeeded, so the tables exist on Neon `dev`. The deployer's `run.admin` covered creating and running the job; no new role was needed.
+- 2026-11-22, Phase 3 setup round (dev): Google Auth Platform with External audience in Testing mode and both Gmails as test users; a Web OAuth client for the dev site and `http://localhost:5173`; Places API (New) enabled with a server key restricted to it; secrets `ALLOWED_EMAILS` and `PLACES_API_KEY` readable by `api-runtime`; GitHub `dev` variables `GOOGLE_CLIENT_ID` and `DJANGO_CSRF_TRUSTED_ORIGINS`. The photo bucket was not created (photos dropped, D57). Sign-in and a name lookup verified on the dev site by the owner.
+- 2026-11-23, collection map (dev): Maps JavaScript API and API Keys API enabled; browser key "Foodies Maps browser (dev)" restricted to the dev site's `.web.app` and `.firebaseapp.com` addresses and to Maps JavaScript API only; its value set as the GitHub `dev` variable `MAPS_KEY` without being printed. Cloud Quotas API enabled. Map ID (JavaScript, vector) created by the owner in Map management and set as the GitHub `dev` variable `MAP_ID`. Daily quotas set through the Cloud Quotas API with the owner's go-ahead: "Map loads" 300 per day, "3D Map loads" 0. Done from the owner's gcloud sign-in. Verified: a real map with a pin loads from the dev site's address with the deployed key and Map ID.
+- 2026-11-23, backups (dev, D63): Cloud Scheduler API enabled; private bucket `<dev project>-backups` in `us-central1` (public access prevention, uniform access, delete after 30 days, default 7-day soft delete); service account `backup-runner` with `roles/storage.objectCreator` on that bucket and `secretAccessor` on `DATABASE_URL` only; `deployer` may act as it; GitHub `dev` variable `BACKUP_BUCKET`. Service account `backup-scheduler` with `roles/run.invoker` on the job `foodies-backup` only; Cloud Scheduler job `foodies-backup-nightly` (`0 2 * * *`, Asia/Jakarta, POST to the Cloud Run Jobs API `…/jobs/foodies-backup:run` with that account's OAuth token). Verified: a manual run and a scheduler-triggered run both succeeded; a downloaded dump matched its SHA-256 and listed all 22 tables (Neon Postgres 17.12, same as the image's pg_dump).
+- Firebase CLI warns it cannot check API enablement without `roles/serviceusage.serviceUsageConsumer` on `deployer`; harmless, the deploy succeeds.
+
+## Replatform: prod environment (set up 2026-11-23 with the owner's gcloud sign-in, D64)
+
+Prod reuses the existing project "Foodies Directory" (the old app's key `foodies-apps-script` is left untouched). ID and site address stay out of this file.
+
+- APIs enabled: Cloud Run, Artifact Registry, Secret Manager, IAM, IAM Credentials, STS, Firebase, Firebase Hosting, Cloud Resource Manager, Maps JavaScript, API Keys, Cloud Scheduler, Cloud Quotas.
+- Firebase added (default Hosting site); Artifact Registry Docker repository `foodies` in `asia-southeast1`.
+- Service accounts as in dev: `api-runtime`, `deployer` (`run.admin`, `artifactregistry.writer`, `firebasehosting.admin`, `serviceAccountUser` on `api-runtime` and `backup-runner`), `backup-runner`, `backup-scheduler`.
+- Workload Identity pool `github`, provider `github-repo`, condition: this repository and `refs/heads/master` only; `deployer` grants `workloadIdentityUser` to the repository.
+- Secrets readable by `api-runtime`: `DJANGO_SECRET_KEY` (newly generated), `ALLOWED_EMAILS` (copied from dev without being shown), `PLACES_API_KEY` (new key "Foodies Places server (prod)", Places API only).
+- Key "Foodies Maps browser (prod)": the prod site's `.web.app` / `.firebaseapp.com` addresses and Maps JavaScript API only. Quotas: "Map loads" 300 per day, "3D Map loads" 0.
+- Backup bucket `<prod project>-backups` (`us-central1`, public access prevention, uniform access, delete after 30 days); `backup-runner` has `objectCreator` on it.
+- GitHub environment `prod` (branch `master` only) with `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `DEPLOYER_SA`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `BACKUP_BUCKET`, `MAPS_KEY`.
+- Tip: run gcloud with `--billing-project <prod project>` (or the REST APIs with `X-Goog-User-Project`); the owner's default gcloud project is another one, and some calls are billed to it and fail.
+
 ## Open
 
-- [ ] Budget alert (~Rp 50,000, thresholds 50/90/100%) saved?
 - [ ] API key edit page: **Save** clicked?
-- [ ] Does "Budgets & caps" offer a real spending cap, not just alerts?
+- [ ] Spend cap: decide whether to add one to the new dev and prod projects (replatform); whether a cap can be set on a billing-account budget is **Unverified**.
 - [ ] API key stored in a password manager?
 - [ ] Quota caps — deliberately skipped by the owner for now (see below).
+- [ ] Prod, owner: Neon role `app_prod` on branch `production` and the secret `DATABASE_URL` (pooled); Google Auth Platform (External, Testing, both Gmails) with a Web client for the prod site → variable `GOOGLE_CLIENT_ID`; a Map ID → variable `MAP_ID`.
+- [ ] Prod, after the first `master` deploy: `api-runtime` and `backup-runner` read `DATABASE_URL`; `backup-scheduler` invoker on `foodies-backup` and the scheduler job `foodies-backup-nightly`.
 
 ## Quota caps (recommended if revisited)
 

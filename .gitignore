@@ -8,3 +8,25 @@ node_modules/
 # Local Claude Code settings and agent worktrees
 .claude/settings.local.json
 .claude/worktrees/
+
+# New stack (api/, frontend/): local env files, build output, Python caches, local Firebase state
+.env
+.env.*
+frontend/dist/
+__pycache__/
+.firebaserc
+.firebase/
+
+# Sheet exports for import_sheet hold personal data (names, reviews); never commit them
+*.csv
+
+# Output of collectstatic if run locally (the image runs it itself)
+api/staticfiles/
+
+# The owner's full-size icon picture: only the generated icons in frontend/public/icons/ are committed.
+/icon-source.*
+# Windows download markers copied into WSL
+*:Zone.Identifier
+# Database backups (README → Restore a backup)
+*.dump
+*.dump.sha256

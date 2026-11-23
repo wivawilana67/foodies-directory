@@ -8,6 +8,8 @@ const ACTIONS = {
   update: (body) => updatePlace_(body),
   saveDish: (body) => saveDish_(body),
   deleteDish: (body) => deleteDish_(body),
+  addPhoto: (body) => addPhoto_(body),
+  deletePhoto: (body) => deletePhoto_(body),
 };
 
 function doGet() {

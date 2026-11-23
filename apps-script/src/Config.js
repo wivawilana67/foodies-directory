@@ -5,30 +5,30 @@ const DISHES_SHEET = 'Dishes';
 const MASTER_SHEET = 'Master';
 const HEADER_ROW = 1;
 
-// "Food List" columns in sheet order: logical field -> header text (the old sheet's names).
-// Per-person headers use the two names in Script Property PEOPLE, so names stay out of this public repo.
+// "Food List" columns in sheet order: logical field -> header text (English; the old Indonesian names are in
+// OLD_HEADERS, Setup.js). Per-person headers use the two names in Script Property PEOPLE, so names stay out of this public repo.
 function placeFields_() {
   const p = people_();
   return {
     uniqueName: 'UniqueName',
-    name: 'Nama Resto',
+    name: 'Name',
     hyperlink: 'Hyperlink',
-    country: 'Negara',
-    city: 'Kota',
-    district: 'Lokasi',
-    landmark: 'Jalan / Patokan',
+    country: 'Country',
+    city: 'City',
+    district: 'District',
+    landmark: 'Landmark',
     rating1: 'Rating (' + p[0] + ')',
     rating2: 'Rating (' + p[1] + ')',
-    price: 'Range Harga (Per Orang)',
-    tipe: 'Tipe Foodies',
-    genre: 'Genre Foodies',
-    jenis: 'Jenis Foodies',
+    price: 'Price Range (Per Person)',
+    tipe: 'Type',
+    genre: 'Genre',
+    jenis: 'Category',
     labels: 'Labels',
     bestDish: 'Best Dish',
     review1: 'Review (' + p[0] + ')',
     review2: 'Review (' + p[1] + ')',
-    instagram: 'Link Instagram',
-    mapsLink: 'Link Google',
+    instagram: 'Instagram Link',
+    mapsLink: 'Google Maps Link',
     closed: 'Closed',
     tried: 'Have Tried?',
   };
@@ -44,6 +44,7 @@ const APP_FIELDS = {
   googleCategory: 'Google Category',
   addedAt: 'Added At',
   lookupStatus: 'Lookup Status',
+  photos: 'Photos',
 };
 
 const DISH_FIELDS = {
@@ -56,14 +57,15 @@ const DISH_FIELDS = {
   best: 'Best',
   note: 'Note',
   addedAt: 'Added At',
+  photos: 'Photos',
 };
 
 // "Master" lists. The order of Ratings is the sort rank (last = best).
 const MASTER_FIELDS = {
   rating: 'Ratings',
-  tipe: 'Tipe Foodies',
-  genre: 'Genre Foodies',
-  jenis: 'Jenis Foodies',
+  tipe: 'Type',
+  genre: 'Genre',
+  jenis: 'Category',
 };
 
 // Place fields the phone may set. UniqueName, Hyperlink and Best Dish are derived by the server.
@@ -80,6 +82,7 @@ const PROP = {
   dailyLimit: 'DAILY_LIMIT',
   monthlyLimit: 'MONTHLY_LIMIT',
   usage: 'USAGE',
+  photoFolder: 'PHOTO_FOLDER_ID',
 };
 
 const DEFAULT_DAILY_LIMIT = 50;
@@ -87,6 +90,8 @@ const DEFAULT_MONTHLY_LIMIT = 900;
 const LOOKUP_CACHE_SECONDS = 600;
 const BACKFILL_BATCH = 15;
 const BACKFILL_TIME_BUDGET_MS = 4.5 * 60 * 1000;
+const MAX_PHOTOS = 5; // per place and per dish
+const MAX_PHOTO_BYTES = 1.5 * 1024 * 1024;
 
 function getProp_(key) {
   const value = PropertiesService.getScriptProperties().getProperty(key);

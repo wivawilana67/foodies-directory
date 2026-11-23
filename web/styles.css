@@ -34,8 +34,9 @@
   color-scheme: light;
 }
 
+/* Dark tokens: follow the phone unless Settings → Theme forces light or dark (data-theme on <html>). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #17151f;
     --surface: #24212f;
     --soft: #2e2a3b;
@@ -46,6 +47,18 @@
     --accent-text: #1f1b2e;
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #17151f;
+  --surface: #24212f;
+  --soft: #2e2a3b;
+  --text: #f5f1e8;
+  --muted: #b3acc2;
+  --line: #f5f1e8;
+  --accent: #ff7d5e;
+  --accent-text: #1f1b2e;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -77,6 +90,9 @@ h2 { margin: 4px 0; font-size: 1.45rem; line-height: 1.2; }
 }
 
 .topbar h1 { margin: 0; font-size: 1.5rem; }
+
+/* The test copy (/test/) gets a sunflower top bar so it is never mistaken for the live app. */
+[data-env="test"] .topbar { background: var(--sun); color: var(--on-pastel); }
 
 .topbar-button {
   min-width: 44px;
@@ -223,6 +239,7 @@ legend { padding: 0; font-weight: 700; }
 
 .card-body { flex: 1; min-width: 0; }
 .card h3 { margin: 0; font-size: 1.1rem; line-height: 1.25; }
+.card-thumb { float: right; width: 64px; height: 64px; margin: 0 0 6px 10px; object-fit: cover; border: 2px solid var(--line); border-radius: 12px; background: var(--soft); }
 
 /* The whole card body is one tap target that opens the place. */
 .card-main {
@@ -320,6 +337,13 @@ details label { margin-top: 8px; }
 .dish-name { font-weight: 800; }
 .dish-note { overflow-wrap: anywhere; }
 
+/* Photos */
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.photo-thumb { padding: 0; aspect-ratio: 1; overflow: hidden; border: 2px solid var(--line); border-radius: 14px; background: var(--soft); box-shadow: var(--shadow); cursor: pointer; }
+.photo-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.photo-strip { display: flex; flex-wrap: wrap; gap: 8px; }
+.photo-small { width: 72px; height: 72px; object-fit: cover; border: 2px solid var(--line); border-radius: 12px; background: var(--soft); }
+
 /* "Copied" message */
 .toast {
   position: fixed;
@@ -337,6 +361,11 @@ details label { margin-top: 8px; }
   box-shadow: var(--shadow);
   transform: translateX(-50%);
 }
+
+/* Full-screen photo: z-index above the top bar and tab bar (both 2). */
+.viewer { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; background: var(--bg); }
+.viewer img { max-width: 100%; max-height: 72vh; object-fit: contain; border: 2px solid var(--line); border-radius: 14px; }
+.viewer p { margin: 0; }
 
 .offscreen { position: fixed; top: -1000px; opacity: 0; }
 

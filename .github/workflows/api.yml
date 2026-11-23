@@ -1,0 +1,117 @@
+name: API (test and deploy to Cloud Run)
+
+# Tests run on every PR and push that touches api/. Deploys: develop -> dev project, master -> prod project.
+# Deploys stay off until the repository variable CLOUD_DEPLOY is "on" (after the console setup, see the README).
+on:
+  push:
+    branches: [develop, master]
+    paths: ['api/**', '.github/workflows/api.yml']
+  pull_request:
+    paths: ['api/**', '.github/workflows/api.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      db:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: foodies
+          POSTGRES_USER: foodies
+          POSTGRES_PASSWORD: foodies
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U foodies -d foodies"
+          --health-interval 2s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build the image and run the tests inside it
+        run: |
+          docker build -t foodies-api:ci api
+          docker run --rm --network host \
+            -e DATABASE_URL=postgres://foodies:foodies@localhost:5432/foodies \
+            -e DJANGO_SECRET_KEY=ci-only \
+            foodies-api:ci python manage.py test
+
+  deploy:
+    needs: test
+    if: >-
+      vars.CLOUD_DEPLOY == 'on' && github.event_name != 'pull_request' &&
+      (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: ${{ github.ref == 'refs/heads/master' && 'prod' || 'dev' }}
+    concurrency:
+      group: deploy-api-${{ github.ref }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      PROJECT: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOYER_SA }}
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3.0.1
+      - name: Build and push the image
+        run: |
+          IMAGE="$REGION-docker.pkg.dev/$PROJECT/foodies/api:$GITHUB_SHA"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" --quiet
+          docker build -t "$IMAGE" api
+          docker push "$IMAGE"
+      # Migrations run once per deploy as a Cloud Run job, before the new version takes traffic, so two
+      # starting instances never migrate at the same time. A failed migration stops the deploy.
+      - name: Run database migrations
+        run: |
+          gcloud run jobs deploy foodies-migrate --quiet \
+            --project="$PROJECT" --region="$REGION" \
+            --image="$REGION-docker.pkg.dev/$PROJECT/foodies/api:$GITHUB_SHA" \
+            --service-account="api-runtime@$PROJECT.iam.gserviceaccount.com" \
+            --command=python --args=manage.py,migrate,--noinput \
+            --max-retries=0 --task-timeout=600s --memory=512Mi \
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest,DJANGO_SECRET_KEY=DJANGO_SECRET_KEY:latest
+          gcloud run jobs execute foodies-migrate --quiet --project="$PROJECT" --region="$REGION" --wait
+      # Non-secret settings come from the GitHub environment's variables; secrets from Secret Manager.
+      # "^@^" makes @ the separator, so a value may contain commas (gcloud topic escaping).
+      - name: Deploy to Cloud Run
+        env:
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          CSRF_ORIGINS: ${{ vars.DJANGO_CSRF_TRUSTED_ORIGINS }}
+        run: |
+          gcloud run deploy foodies-api --quiet \
+            --project="$PROJECT" --region="$REGION" \
+            --image="$REGION-docker.pkg.dev/$PROJECT/foodies/api:$GITHUB_SHA" \
+            --service-account="api-runtime@$PROJECT.iam.gserviceaccount.com" \
+            --allow-unauthenticated --min-instances=0 --max-instances=2 --memory=512Mi \
+            --set-env-vars="^@^GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID@DJANGO_CSRF_TRUSTED_ORIGINS=$CSRF_ORIGINS" \
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest,DJANGO_SECRET_KEY=DJANGO_SECRET_KEY:latest,ALLOWED_EMAILS=ALLOWED_EMAILS:latest,PLACES_API_KEY=PLACES_API_KEY:latest
+      # Nightly backup job (D63): same image, its own service account that may only add files to the bucket and
+      # read DATABASE_URL. Settings need a secret key to load; backups sign nothing, so a placeholder is enough.
+      # Only where the environment has a backup bucket (variable BACKUP_BUCKET); Cloud Scheduler starts it.
+      - name: Update the backup job
+        if: vars.BACKUP_BUCKET != ''
+        env:
+          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
+        run: |
+          gcloud run jobs deploy foodies-backup --quiet \
+            --project="$PROJECT" --region="$REGION" \
+            --image="$REGION-docker.pkg.dev/$PROJECT/foodies/api:$GITHUB_SHA" \
+            --service-account="backup-runner@$PROJECT.iam.gserviceaccount.com" \
+            --command=python --args=manage.py,backup_db \
+            --max-retries=1 --task-timeout=900s --memory=512Mi \
+            --set-env-vars="BACKUP_BUCKET=$BACKUP_BUCKET,DJANGO_SECRET_KEY=unused-by-backups" \
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest

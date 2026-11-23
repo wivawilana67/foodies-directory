@@ -29,7 +29,7 @@ Built for two people. Android: installs as an app with a home-screen icon. iPhon
 
 - Google Sheets (database), Apps Script V8 (backend), Places API (New) — SearchText and GetPlace only, Google Drive for photos.
 - Vanilla HTML/CSS/JS PWA, no build step, hosted on GitHub Pages and published by a GitHub Actions workflow: `master` at the site root (live), `develop` under `/test/` (test).
-- Branches: `develop` is the default branch and the test environment: work is committed to it directly, and every push publishes the test copy. `master` is prod (merging publishes the live app). A release is a PR `develop` → `master`.
+- Branches: `develop` is the default branch and the test environment: work is committed to it directly, and every push publishes the test copy. `master` is prod: merging deploys the new stack to the prod project; the old app's site is frozen at the tag `live-app-frozen` until the switch-over (D64). A release is a PR `develop` → `master`.
 - `clasp` (root `package.json`) is the only dependency.
 - The repo is public: secrets, IDs and URLs live in Script Properties or on each phone, never in git.
 
@@ -167,7 +167,7 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 
 ## Local development (new stack, Docker only)
 
-The replatform (`docs/decisions.md` D39–D63) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
+The replatform (`docs/decisions.md` D39–D64) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
 
 ```bash
 sudo apt update && sudo apt install -y docker.io docker-compose-v2

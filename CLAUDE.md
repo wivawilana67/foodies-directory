@@ -5,7 +5,7 @@ A phone-friendly directory of places to eat for two people, kept in a Google She
 - `apps-script/` — backend: a Google Apps Script web app. Reads and writes the sheet, calls the Places API (New), holds the API key, counts spend, runs the backfill.
 - `web/` — front end: an installable web app (PWA) served by GitHub Pages. All / Wishlist / Near me lists, place detail and edit, dishes, add a place.
 
-A replacement stack is being built next to it (`docs/decisions.md` D39–D63): `api/` (Django on Cloud Run, Neon Postgres) and `frontend/` (React PWA on Firebase Hosting). Until the switch-over, `apps-script/` + `web/` are the live app.
+A replacement stack is being built next to it (`docs/decisions.md` D39–D64): `api/` (Django on Cloud Run, Neon Postgres) and `frontend/` (React PWA on Firebase Hosting). Until the switch-over, `apps-script/` + `web/` are the live app.
 
 The Google Sheet is the database. **This repo is public** (free GitHub Pages): no secret, token, script ID, sheet ID or deployment URL is ever committed.
 
@@ -23,7 +23,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 ├── firebase.json               # Firebase Hosting: serves frontend/dist, rewrites /api/** to Cloud Run foodies-api
 ├── .gitignore                  # node_modules/, every real .clasp*.json, .env*, frontend/dist, .firebaserc, *.csv (sheet exports), *.dump (database backups), /icon-source.* (full-size icon picture), local Claude settings
 ├── .github/
-│   ├── workflows/pages.yml     # Publishes web/ to GitHub Pages on every push to master (root) or develop (/test/)
+│   ├── workflows/pages.yml     # Publishes web/ to GitHub Pages: the frozen live app (tag live-app-frozen) at the root, develop under /test/
 │   ├── workflows/api.yml       # api/: tests in the image; deploys to Cloud Run (develop → dev, master → prod) when CLOUD_DEPLOY is on; updates the backup job
 │   ├── workflows/frontend.yml  # frontend/: build; deploys to Firebase Hosting (develop → dev, master → prod) when CLOUD_DEPLOY is on
 │   └── dependabot.yml          # Weekly bumps of the SHA-pinned actions (PRs into develop)
@@ -125,7 +125,7 @@ The code wins when docs disagree — then fix the docs in the same change. There
    - The Places API key lives only in Script Properties. No secrets, IDs or URLs from Section 5 in code, logs, docs or commits.
 4. **Spend is a feature.** Every Places API call goes through `getPlace_` / `searchText_`, which reserve quota first. No new Places method or field without updating `docs/decisions.md` and checking the price tier.
 5. **Logged and fail-loud.** Log entry points and writes (no tokens, no location); catch, log with context, re-throw or return a clear error.
-6. **Match the stack.** Live app: Apps Script V8; vanilla HTML/CSS/JS ES modules; Google Sheets as storage. New stack (owner-approved, D39–D63): Django + PostgreSQL in `api/`, React + TypeScript + Vite in `frontend/`. Local tooling runs only in Docker (`docker-compose.yml`); nothing else is installed on the machine. No other framework, runtime package or CDN script without the owner's approval.
+6. **Match the stack.** Live app: Apps Script V8; vanilla HTML/CSS/JS ES modules; Google Sheets as storage. New stack (owner-approved, D39–D64): Django + PostgreSQL in `api/`, React + TypeScript + Vite in `frontend/`. Local tooling runs only in Docker (`docker-compose.yml`); nothing else is installed on the machine. No other framework, runtime package or CDN script without the owner's approval.
 7. **Match the surrounding code** — naming, comment density, idiom.
 8. **Facts only.** Never invent APIs, sheet headers or rules. Unverified assumptions are marked "Unverified" in code and docs until confirmed.
 
@@ -168,7 +168,7 @@ Use the `development-documentation` skill.
   - **Prod** = the live Apps Script project on the live sheet. `push-prod`, editor runs in the live project and the live deployment touch live data; do them only when the owner asks in that request.
 - **Never committed (public repo):** `.clasp*.json` except the example (`.clasp-prod.json`, `.clasp-test.json`), script IDs (live and test), spreadsheet IDs (live and test), web app URLs (live and test), `API_TOKEN` (live and test), `PLACES_API_KEY`, the names in `PEOPLE`, the Drive photo folder IDs (`PHOTO_FOLDER_ID`, live and test).
 - **Backend: deploy only with the root npm scripts.** `npm run push-test` and `npm run push-prod` push code; `npm run pull-test` and `npm run pull-prod` pull it. A web app URL only serves new code after its owner updates that environment's existing deployment to a new version (README → Deploy).
-- **Front end: one Pages site, two copies.** `master` is live and publishes at the site root. `develop` is the test copy and publishes under `/test/`. A push to `master` or `develop` that touches `web/` (or the workflow) publishes through `.github/workflows/pages.yml`, which rebuilds the whole site. Nothing else deploys the front end.
+- **Front end: one Pages site, two copies.** The live app is **frozen** (D64): the site root is built from the tag `live-app-frozen` (today's live `web/`), so merging `develop` into `master` for the new stack never changes it. Moving that tag is a live release of the old app; only with the owner's request. `develop` is the test copy and publishes under `/test/`. A push to `master` or `develop` that touches `web/` (or the workflow) publishes through `.github/workflows/pages.yml`, which rebuilds the whole site. Nothing else deploys the front end.
 - **Backfill** runs from the Apps Script editor, only with the owner's go-ahead: take a backup first (File → Make a copy, or a named version in Version history), run one batch of 15 rows, check it, then the rest.
 - **`clasp pull` overwrites local files.** Commit first.
 
@@ -181,10 +181,10 @@ Use the `development-documentation` skill.
 ### Branching Model
 - Two long-lived branches:
   - **`develop`**: the GitHub default branch and the **test** environment; all work is committed to it directly. Every push to it publishes the test copy of `web/` under `/test/`.
-  - **`master`**: **prod** (live). Merging into it publishes `web/` at the site root. Both are published by `.github/workflows/pages.yml`.
+  - **`master`**: **prod**. Merging into it deploys the new stack (`api/`, `frontend/`) to the prod Google Cloud project; the old app's root on Pages stays at the tag `live-app-frozen` (D64).
 - **No new branches or worktrees** (`feat/*`, `fix/*`, `chore/*`, `git worktree`, agent worktrees) unless the owner explicitly asks for one in that request. A release is a PR `develop` → `master`, which needs no new branch; `master` is protected (PR only, no force push or delete).
 - Work on the checked-out branch (normally `develop`).
-- **Merge = deploy.** A push or merge into `develop` publishes the test site; merging into `master` publishes the live site. When a change also touches `apps-script/`, push and update that environment's deployment first: test first (`npm run push-test`, then the test deployment), then prod for a release (`npm run push-prod`, then the live deployment). See README → Deploy.
+- **Merge = deploy.** A push or merge into `develop` publishes the test site and deploys the new stack to dev; merging into `master` deploys the new stack to prod (the old app's root stays frozen). When a change also touches `apps-script/`, push and update that environment's deployment first: test first (`npm run push-test`, then the test deployment), then prod for a release (`npm run push-prod`, then the live deployment). See README → Deploy.
 
 ### Pull and Push
 - Before starting: `git checkout develop` and `git pull origin develop`. Commit or stash before pulling.

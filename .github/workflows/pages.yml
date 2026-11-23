@@ -1,7 +1,9 @@
 name: Deploy web to GitHub Pages
 
-# One Pages site holds both apps: master (live) at the root and develop (test) under /test/.
-# A push to either branch rebuilds the whole site from both branches, so neither wipes the other.
+# One Pages site holds both apps: the frozen live app at the root and develop (test) under /test/.
+# The root is built from the tag live-app-frozen (D64), not from master: master now also carries the new stack, and
+# merging it must not change the old app the owner still uses until the switch-over.
+# A push to either branch rebuilds the whole site, so neither wipes the other.
 on:
   push:
     branches: [master, develop]
@@ -20,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: master
+          ref: live-app-frozen
           path: live
           persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

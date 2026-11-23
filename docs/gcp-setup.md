@@ -42,14 +42,28 @@ The project ID and site address are kept out of this public file.
 - 2026-11-23, backups (dev, D63): Cloud Scheduler API enabled; private bucket `<dev project>-backups` in `us-central1` (public access prevention, uniform access, delete after 30 days, default 7-day soft delete); service account `backup-runner` with `roles/storage.objectCreator` on that bucket and `secretAccessor` on `DATABASE_URL` only; `deployer` may act as it; GitHub `dev` variable `BACKUP_BUCKET`. Service account `backup-scheduler` with `roles/run.invoker` on the job `foodies-backup` only; Cloud Scheduler job `foodies-backup-nightly` (`0 2 * * *`, Asia/Jakarta, POST to the Cloud Run Jobs API `…/jobs/foodies-backup:run` with that account's OAuth token). Verified: a manual run and a scheduler-triggered run both succeeded; a downloaded dump matched its SHA-256 and listed all 22 tables (Neon Postgres 17.12, same as the image's pg_dump).
 - Firebase CLI warns it cannot check API enablement without `roles/serviceusage.serviceUsageConsumer` on `deployer`; harmless, the deploy succeeds.
 
+## Replatform: prod environment (set up 2026-11-23 with the owner's gcloud sign-in, D64)
+
+Prod reuses the existing project "Foodies Directory" (the old app's key `foodies-apps-script` is left untouched). ID and site address stay out of this file.
+
+- APIs enabled: Cloud Run, Artifact Registry, Secret Manager, IAM, IAM Credentials, STS, Firebase, Firebase Hosting, Cloud Resource Manager, Maps JavaScript, API Keys, Cloud Scheduler, Cloud Quotas.
+- Firebase added (default Hosting site); Artifact Registry Docker repository `foodies` in `asia-southeast1`.
+- Service accounts as in dev: `api-runtime`, `deployer` (`run.admin`, `artifactregistry.writer`, `firebasehosting.admin`, `serviceAccountUser` on `api-runtime` and `backup-runner`), `backup-runner`, `backup-scheduler`.
+- Workload Identity pool `github`, provider `github-repo`, condition: this repository and `refs/heads/master` only; `deployer` grants `workloadIdentityUser` to the repository.
+- Secrets readable by `api-runtime`: `DJANGO_SECRET_KEY` (newly generated), `ALLOWED_EMAILS` (copied from dev without being shown), `PLACES_API_KEY` (new key "Foodies Places server (prod)", Places API only).
+- Key "Foodies Maps browser (prod)": the prod site's `.web.app` / `.firebaseapp.com` addresses and Maps JavaScript API only. Quotas: "Map loads" 300 per day, "3D Map loads" 0.
+- Backup bucket `<prod project>-backups` (`us-central1`, public access prevention, uniform access, delete after 30 days); `backup-runner` has `objectCreator` on it.
+- GitHub environment `prod` (branch `master` only) with `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `DEPLOYER_SA`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `BACKUP_BUCKET`, `MAPS_KEY`.
+- Tip: run gcloud with `--billing-project <prod project>` (or the REST APIs with `X-Goog-User-Project`); the owner's default gcloud project is another one, and some calls are billed to it and fail.
+
 ## Open
 
 - [ ] API key edit page: **Save** clicked?
 - [ ] Spend cap: decide whether to add one to the new dev and prod projects (replatform); whether a cap can be set on a billing-account budget is **Unverified**.
 - [ ] API key stored in a password manager?
 - [ ] Quota caps — deliberately skipped by the owner for now (see below).
-- [ ] Backups for **prod** at the switch-over: the same as dev below (bucket `<prod project>-backups` in `us-central1`, `backup-runner`, its three permissions, GitHub `prod` variable `BACKUP_BUCKET`, the scheduler job).
-- [ ] Collection map for **prod** at the switch-over: the same as dev below (key restricted to the prod site, Map ID, GitHub `prod` variables `MAPS_KEY` / `MAP_ID`, daily caps).
+- [ ] Prod, owner: Neon role `app_prod` on branch `production` and the secret `DATABASE_URL` (pooled); Google Auth Platform (External, Testing, both Gmails) with a Web client for the prod site → variable `GOOGLE_CLIENT_ID`; a Map ID → variable `MAP_ID`.
+- [ ] Prod, after the first `master` deploy: `api-runtime` and `backup-runner` read `DATABASE_URL`; `backup-scheduler` invoker on `foodies-backup` and the scheduler job `foodies-backup-nightly`.
 
 ## Quota caps (recommended if revisited)
 

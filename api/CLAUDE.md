@@ -1,8 +1,8 @@
 # api — Developer and Agent Guide
 
-The new backend (replatform, `docs/decisions.md` D39–D61): a Django app in one Docker image. It runs locally in `docker compose` and in production on Cloud Run (`asia-southeast1`), with PostgreSQL (local container, Neon in the cloud). **Phase 3 code complete** (plus local-only sample data and sign-in for Phase 4, D58): data model, admin, sheet import, Google Sign-In with app tokens, the JSON API for places, dishes and collections, and adding places from Google. No photos for now (D57). In dev, sign-in and lookups answer "not configured" until the Phase 3 setup round sets their keys. The live backend is still `apps-script/` until the switch-over.
+The new backend (replatform, `docs/decisions.md` D39–D62): a Django app in one Docker image. It runs locally in `docker compose` and in production on Cloud Run (`asia-southeast1`), with PostgreSQL (local container, Neon in the cloud). **Phase 3 code complete** (plus local-only sample data and sign-in for Phase 4, D58): data model, admin, sheet import, Google Sign-In with app tokens, the JSON API for places, dishes and collections, and adding places from Google. No photos for now (D57). In dev, sign-in and lookups answer "not configured" until the Phase 3 setup round sets their keys. The live backend is still `apps-script/` until the switch-over.
 
-Read first: root `CLAUDE.md`, `README.md` (Local development) and `docs/decisions.md` D39–D61.
+Read first: root `CLAUDE.md`, `README.md` (Local development) and `docs/decisions.md` D39–D62.
 
 ---
 

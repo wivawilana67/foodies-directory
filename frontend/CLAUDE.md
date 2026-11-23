@@ -1,8 +1,8 @@
 # frontend — Developer and Agent Guide
 
-The new phone app (replatform, `docs/decisions.md` D39–D61): React + TypeScript + Vite, built to static files and served by Firebase Hosting, which sends `/api/**` to Cloud Run (`firebase.json`). **Phase 4 complete**: sign-in, the All / Wishlist / Near me lists (search, label chips, filters, score or distance sort, Copy list, copy per card), place detail (Maps, Instagram, Copy, Share, Mark as tried, scores, dishes), the edit form with the conflict check, adding, editing and deleting dishes (Best Dish from starred dishes), the Add tab (Google lookup by link or name, Paste, add by name, Android share target), Settings (theme, sign-out, iPhone home-screen hint), the **Install app** button on Android, and a service worker so the app opens offline with the saved copy of `/api/bootstrap`. Next: Collections with the map (Phase 5). The live app is still `web/` until the switch-over; its rules (iPhone Safari without install, location stays on the phone, Sticker design) carry over.
+The new phone app (replatform, `docs/decisions.md` D39–D62): React + TypeScript + Vite, built to static files and served by Firebase Hosting, which sends `/api/**` to Cloud Run (`firebase.json`). **Phase 4 complete**: sign-in, the All / Wishlist / Near me lists (search, label chips, filters, score or distance sort, Copy list, copy per card), place detail (Maps, Instagram, Copy, Share, Mark as tried, scores, dishes), the edit form with the conflict check, adding, editing and deleting dishes (Best Dish from starred dishes), the Add tab (Google lookup by link or name, Paste, add by name, Android share target), Settings (theme, sign-out, iPhone home-screen hint), the **Install app** button on Android, a service worker so the app opens offline with the saved copy of `/api/bootstrap`, and **Collections** (Phase 5: a Collections tab, List / Map with Type chips, adding from Select, a place's detail or inside a collection). Next: backup (Phase 6) and the switch-over (Phase 7). The live app is still `web/` until the switch-over; its rules (iPhone Safari without install, location stays on the phone, Sticker design) carry over.
 
-Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.md` D39–D61 and `web/CLAUDE.md` (behaviour being ported).
+Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.md` D39–D62 and `web/CLAUDE.md` (behaviour being ported).
 
 ---
 
@@ -25,11 +25,16 @@ frontend/
     │                                  #   settings), top bar, bottom tabs incl. Add, Back button, readShare (Android share link),
     │                                  #   savePlace / addedPlace / saveDish (merge replies into data + cache)
     ├── SignIn.tsx                     # Google Sign-In button; in the Vite dev server only, a "Local dev token" field
-    ├── PlaceList.tsx                  # All / Wishlist / Near me (port of web/list.js): search, filters, label chips, sort, cards
+    ├── PlaceList.tsx                  # All / Wishlist / Near me (port of web/list.js): search, filters, label chips, sort, cards;
+    │                                  #   Select mode (onAddTo) and `pick` (adding from a collection); exports PlaceCard
     ├── PlaceDetail.tsx                # Place detail (port of renderPlace): actions, scores, price, best dish, dishes, + Add dish
     ├── PlaceForm.tsx                  # Add + edit form (port of openForm / formFields): ChoiceField, LabelsField, suggest fields
     ├── DishForm.tsx                   # Add / edit / delete a dish (port of web/dishes.js, no photos); replies carry bestDish
     ├── AddPlace.tsx                   # Add tab (port of web/add.js): lookup, Paste, result cards with Pick, add by name
+    ├── Collections.tsx                # CollectionList (tab), CollectionView (list / map, Type chips, Remove), CollectionForm
+    │                                  #   (name + note, 409 "Load latest"), AddToCollection (pick one or create and add)
+    ├── CollectionMap.tsx              # Map view: plain pins for places with coordinates; a tapped pin shows its card
+    ├── maps.ts                        # loadMaps(): Google's Maps script URL with VITE_MAPS_KEY, once; MAP_ID, mapsConfigured
     ├── Settings.tsx                   # Signed-in name, Sign out, Sign out on every device (second tap confirms), Theme,
     │                                  #   iPhone "Add to Home Screen" hint
     ├── theme.ts                       # getTheme / saveTheme / applyTheme (port of web/app.js): data-theme + theme-color metas
@@ -40,7 +45,7 @@ frontend/
     ├── types.ts                       # API JSON shapes (Place, Dish, Person, Collection, Options, Data, LookupResult)
     ├── styles.css                     # "Sticker" tokens and components ported from web/styles.css (light + dark)
     ├── fonts/                         # Nunito + Fredoka woff2 and OFL licences (copied from web/fonts/), bundled by Vite
-    ├── google.d.ts                    # Types for the Google Identity Services script
+    ├── google.d.ts                    # Types for the Google Identity Services script and the parts of google.maps used
     └── vite-env.d.ts
 ```
 
@@ -73,9 +78,11 @@ The `web` container runs as user `node` (uid 1000), so `node_modules/` and `pack
 - Service worker (D61, `vite-plugin-pwa`, Workbox `generateSW`): precaches only the built files (`html`, `js`, `css`, `woff2`, the icons, the manifest); navigations fall back to `index.html` except `/api/**`; no runtime caching, so API replies (private data) never enter its cache. `registerType: 'autoUpdate'`: a new deploy takes over on the next open. Registered by the `registerSW.js` file (no inline script). Not active in the Vite dev server.
 - Install: Android Chrome's `beforeinstallprompt` shows **Install app** in the top bar (`App.tsx`); iPhone Safari gets a hint in Settings unless already opened from the home screen.
 - Firebase Hosting headers (`firebase.json`): `no-cache` on `/`, `index.html`, `sw.js`, `registerSW.js` and the manifest, so a deploy reaches phones; a year, immutable, on the hashed `/assets/**`; `nosniff`, `X-Frame-Options: DENY` and `strict-origin-when-cross-origin` on every file.
+- Collections (D49, D62): data in `/api/bootstrap` (`collections`, each with `placeIds`); every reply carries the whole `collection`, merged by `saveCollection` in `App.tsx`. Removing a place or deleting a collection needs a second tap and never deletes places. Select in All / Wishlist opens **Add to collection**; inside a collection, **+ Add places** shows the list in `pick` mode without the places already in it and adds straight away.
+- Collection map: `maps.ts` loads `https://maps.googleapis.com/maps/api/js` (the second external script, D50) only when a map is first shown; no npm package. `VITE_MAPS_KEY` and `VITE_MAP_ID` come from the GitHub environment variables `MAPS_KEY` / `MAP_ID` at build time; without both the map says it is not set up. Each opening of the Map view is one billed map load; pins are redrawn without a new load when the Type chips change.
 - Dishes are last-write-wins (D25). Each dish reply (`POST /api/dishes`, `PATCH` / `DELETE /api/dishes/<id>`) carries the place's `bestDish`, which is merged without changing the place's `version`. Delete needs a second tap.
 - Edits go through `patchPlace` with the version the phone loaded and only the changed fields and ratings (D24). On `409`: the form keeps the user's input, shows the server's message and offers **Load latest (drops your edits)**, which refreshes; the form is keyed by `id:version`, so it restarts with the new values. **Mark as tried** on the detail view refreshes at once and asks to try again (D59).
-- Buttons may wrap (`.button` has no `nowrap`, unlike `web/styles.css`), so long labels never widen the page on a 320 px phone.
+- Buttons may wrap (`.button` has no `nowrap`, unlike `web/styles.css`), so long labels never widen the page on a 320 px phone. Tab labels do not wrap (five tabs fit 320 px with 6 px label padding).
 
 ## 4. Deploy
 

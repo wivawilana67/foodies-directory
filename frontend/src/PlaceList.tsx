@@ -6,6 +6,7 @@ import type { Data, Place } from './types';
 
 // The All, Wishlist and Near me tabs (port of web/list.js): one list with shared filters, sorted by score, or by
 // distance on Near me. Filter choices stay while switching tabs because this component stays mounted.
+// Select mode (D62): tapping cards picks places for a collection; `pick` starts in it (adding from a collection).
 
 export type Tab = 'all' | 'wishlist' | 'near';
 
@@ -20,7 +21,13 @@ const NO_FILTERS: Record<FilterKey, string> = { type: '', genre: '', category: '
 
 const badge = (label: string, cls = '') => <span key={`${cls}:${label}`} className={`badge ${cls}`}>{label}</span>;
 
-function PlaceCard({ place, data, distance, onOpen }: { place: Place; data: Data; distance?: number; onOpen: (id: string) => void }) {
+type CardProps = {
+  place: Place; data: Data; distance?: number; onOpen: (id: string) => void;
+  selected?: boolean; // in select mode: tapping toggles instead of opening
+  action?: React.ReactNode; // replaces the copy button
+};
+
+export function PlaceCard({ place, data, distance, onOpen, selected, action }: CardProps) {
   const scores = data.people
     .map((person) => {
       const score = text(place.ratings[String(person.id)]?.score);
@@ -29,9 +36,9 @@ function PlaceCard({ place, data, distance, onOpen }: { place: Place; data: Data
     .filter(Boolean)
     .join(' · ');
   return (
-    <li className="card">
-      <button type="button" className="card-main" onClick={() => onOpen(place.id)}>
-        <h3>{place.name}</h3>
+    <li className={`card${selected ? ' on' : ''}`}>
+      <button type="button" className="card-main" aria-pressed={selected} onClick={() => onOpen(place.id)}>
+        <h3>{selected && '✓ '}{place.name}</h3>
         <p className="meta">{[areaOf(place), distance !== undefined && Number.isFinite(distance) ? formatKm(distance) : ''].filter(Boolean).join(' — ')}</p>
         <p className="meta">{[place.type, place.genre, place.category].map(text).filter(Boolean).join(' · ')}</p>
         {scores && <p className="scores">{scores}</p>}
@@ -41,16 +48,24 @@ function PlaceCard({ place, data, distance, onOpen }: { place: Place; data: Data
           {place.labels.map((l) => badge(l, 'label'))}
         </p>
       </button>
-      <button type="button" className="icon-button" title="Copy name, location and link" aria-label={`Copy ${place.name}`} onClick={() => copyText(placeText(place))}>
-        ⧉
-      </button>
+      {action ?? (
+        <button type="button" className="icon-button" title="Copy name, location and link" aria-label={`Copy ${place.name}`} onClick={() => copyText(placeText(place))}>
+          ⧉
+        </button>
+      )}
     </li>
   );
 }
 
-type Props = { data: Data; tab: Tab; status: string; onRefresh: () => void; onOpen: (id: string) => void };
+type Props = {
+  data: Data; tab: Tab; status: string; onRefresh: () => void; onOpen: (id: string) => void;
+  onAddTo?: (ids: string[]) => void; // "Add to collection" for the selected places
+  pick?: { exclude: string[]; onDone: (ids: string[]) => void }; // always selecting; `exclude` is left out
+};
 
-export function PlaceList({ data, tab, status, onRefresh, onOpen }: Props) {
+export function PlaceList({ data, tab, status, onRefresh, onOpen, onAddTo, pick }: Props) {
+  const [selecting, setSelecting] = useState(false);
+  const [chosen, setChosen] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(NO_FILTERS);
   const [picked, setPicked] = useState<string[]>([]); // label chips turned on; a place must carry all of them
@@ -86,6 +101,7 @@ export function PlaceList({ data, tab, status, onRefresh, onOpen }: Props) {
   const wishlistOnly = tab === 'wishlist' || (near && nearWishlist);
   const list = data.places.filter(
     (p) =>
+      !pick?.exclude.includes(p.id) &&
       (showClosed || !p.closed) &&
       (!wishlistOnly || !p.tried) &&
       active.every(([key, v]) => text(p[key]) === v) &&
@@ -110,6 +126,18 @@ export function PlaceList({ data, tab, status, onRefresh, onOpen }: Props) {
 
   function toggleLabel(label: string) {
     setPicked((now) => (now.includes(label) ? now.filter((l) => l !== label) : [...now, label]));
+  }
+
+  const selectMode = Boolean(pick) || selecting;
+  const toggle = (id: string) => setChosen((now) => (now.includes(id) ? now.filter((x) => x !== id) : [...now, id]));
+  function stopSelecting() {
+    setSelecting(false);
+    setChosen([]);
+  }
+  function finish() {
+    if (pick) pick.onDone(chosen);
+    else onAddTo?.(chosen);
+    stopSelecting();
   }
 
   function copyList() {
@@ -152,14 +180,30 @@ export function PlaceList({ data, tab, status, onRefresh, onOpen }: Props) {
         )}
         <div className="row">
           <span className="count muted">{list.length} of {data.places.length} places</span>
-          <button type="button" className="button" onClick={copyList}>Copy list</button>
-          <button type="button" className="button" onClick={onRefresh}>Refresh</button>
+          {!pick && (
+            <>
+              {onAddTo && !selecting && <button type="button" className="button" onClick={() => setSelecting(true)}>Select</button>}
+              <button type="button" className="button" onClick={copyList}>Copy list</button>
+              <button type="button" className="button" onClick={onRefresh}>Refresh</button>
+            </>
+          )}
         </div>
       </div>
       <p className="muted" role="status">{[status, near ? locStatus : ''].filter(Boolean).join(' ')}</p>
       <ul className="cards">
-        {list.map((p) => <PlaceCard key={p.id} place={p} data={data} distance={distance.get(p)} onOpen={onOpen} />)}
+        {list.map((p) => (
+          <PlaceCard key={p.id} place={p} data={data} distance={distance.get(p)} onOpen={selectMode ? toggle : onOpen} selected={selectMode ? chosen.includes(p.id) : undefined} />
+        ))}
       </ul>
+      {selectMode && (
+        <div className="selectbar row">
+          <span className="count">{chosen.length} selected</span>
+          {!pick && <button type="button" className="button" onClick={stopSelecting}>Cancel</button>}
+          <button type="button" className="button primary" disabled={!chosen.length} onClick={finish}>
+            Add {chosen.length || ''} to collection
+          </button>
+        </div>
+      )}
     </section>
   );
 }

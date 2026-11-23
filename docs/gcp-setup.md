@@ -46,6 +46,7 @@ The project ID and site address are kept out of this public file.
 - [ ] Spend cap: decide whether to add one to the new dev and prod projects (replatform); whether a cap can be set on a billing-account budget is **Unverified**.
 - [ ] API key stored in a password manager?
 - [ ] Quota caps — deliberately skipped by the owner for now (see below).
+- [ ] Collection map (D50, D62), dev: enable Maps JavaScript API; a browser key restricted to the dev site's addresses (HTTP referrers) and to Maps JavaScript API only; a Map ID (JavaScript, vector) for Advanced Markers; GitHub `dev` variables `MAPS_KEY` and `MAP_ID`; a daily map-load quota. Until then the map says it is not set up.
 
 ## Quota caps (recommended if revisited)
 

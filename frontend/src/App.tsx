@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { AddPlace } from './AddPlace';
+import { AddToCollection, CollectionForm, CollectionList, CollectionView } from './Collections';
 import { ApiError, api, hasToken, readCache, setToken, writeCache } from './api';
 import { DishForm, type DishReply } from './DishForm';
 import { PlaceDetail } from './PlaceDetail';
@@ -7,8 +8,8 @@ import { PlaceForm } from './PlaceForm';
 import { PlaceList, type Tab } from './PlaceList';
 import { Settings } from './Settings';
 import { SignIn } from './SignIn';
-import { Toast } from './Toast';
-import type { Data, LookupResult, Place } from './types';
+import { Toast, toast } from './Toast';
+import type { Collection, Data, LookupResult, Place } from './types';
 
 // App shell: sign-in, the saved copy of /api/bootstrap (instant start, offline), top bar, bottom tabs and the
 // phone's Back button. Sub-views push a history entry holding the route; tabs replace it. The list and the Add tab
@@ -16,15 +17,18 @@ import type { Data, LookupResult, Place } from './types';
 
 // place / form / dish: `id` is the place; dish: `dish` is the dish (none = new); new: a place to add, from a
 // lookup result (`google`) or typed by hand (`name`). `notice` is shown on a place just added.
+// collection / collectionForm / pick (add places to it): `col` is the collection; addTo: `places` to add to one.
 type Route = {
-  view: 'list' | 'settings' | 'place' | 'form' | 'dish' | 'new';
-  id?: string; dish?: string; google?: LookupResult; name?: string; notice?: string;
+  view: 'list' | 'settings' | 'place' | 'form' | 'dish' | 'new' | 'collection' | 'collectionForm' | 'pick' | 'addTo';
+  id?: string; dish?: string; google?: LookupResult; name?: string; notice?: string; col?: string; places?: string[];
 };
+type Pane = Tab | 'add' | 'collections';
 const LIST: Route = { view: 'list' };
-const TABS: [Tab | 'add', string, string][] = [
+const TABS: [Pane, string, string][] = [
   ['all', '📋', 'All'],
   ['wishlist', '🔖', 'Wishlist'],
   ['near', '📍', 'Near me'],
+  ['collections', '🗂️', 'Collections'],
   ['add', '➕', 'Add'],
 ];
 
@@ -50,7 +54,7 @@ export function App() {
   const [data, setData] = useState(readCache);
   const [status, setStatus] = useState('');
   const [tab, setTab] = useState<Tab>('all');
-  const [adding, setAdding] = useState(Boolean(SHARED)); // the Add tab is showing
+  const [pane, setPane] = useState<Pane>(SHARED ? 'add' : 'all'); // the tab showing; `tab` keeps the last list tab
   const [addKey, setAddKey] = useState(0); // bumped after an add, to clear the Add tab
   const [route, setRoute] = useState<Route>(() => (history.state?.view ? history.state : LIST)); // a reload keeps the view
   const listScroll = useRef(0);
@@ -129,11 +133,11 @@ export function App() {
     setRoute(next);
   }
 
-  function selectTab(next: Tab | 'add') {
+  function selectTab(next: Pane) {
     listScroll.current = 0;
     history.replaceState(LIST, '');
-    setAdding(next === 'add');
-    if (next !== 'add') setTab(next);
+    setPane(next);
+    if (next !== 'add' && next !== 'collections') setTab(next);
     setRoute(LIST);
   }
 
@@ -158,6 +162,20 @@ export function App() {
     setRoute(next);
   }
 
+  const saveCollection = (c: Collection) => change((d) => ({ ...d, collections: upsert(d.collections, c) }));
+  const dropCollection = (id: string) => change((d) => ({ ...d, collections: d.collections.filter((c) => c.id !== id) }));
+
+  // "+ Add places" inside a collection: the picked places go straight in, then Back to the collection.
+  async function addPlaces(c: Collection, ids: string[]) {
+    try {
+      saveCollection((await api<{ collection: Collection }>(`/api/collections/${c.id}/places`, 'POST', { placeIds: ids })).collection);
+      toast(`Added ${ids.length} to ${c.name}`);
+      history.back();
+    } catch (e) {
+      toast((e as Error).message);
+    }
+  }
+
   // A dish reply carries the place's new Best Dish (derived, so the place's version does not change).
   function saveDish(reply: DishReply, removed?: string) {
     const placeId = route.id;
@@ -170,6 +188,7 @@ export function App() {
 
   const me = data?.people.find((p) => p.id === data.me);
   const place = data?.places.find((p) => p.id === route.id);
+  const collection = data?.collections.find((c) => c.id === route.col);
 
   const gone = (what: string) => (
     <section>
@@ -182,6 +201,28 @@ export function App() {
     if (route.view === 'settings') return <Settings name={me?.name ?? ''} onSignOut={signOut} />;
     if (route.view === 'list') return null;
     if (route.view === 'new') return <PlaceForm google={route.google} name={route.name} data={data} onSaved={addedPlace} onRefresh={refresh} />;
+    if (route.view === 'addTo') return <AddToCollection ids={route.places ?? []} data={data} onSaved={saveCollection} />;
+    if (route.view === 'collection' || route.view === 'collectionForm' || route.view === 'pick') {
+      if (!collection) return gone('collection');
+      if (route.view === 'collectionForm') {
+        return <CollectionForm key={`${collection.id}:${collection.version}`} collection={collection} onSaved={saveCollection} onRefresh={refresh} />;
+      }
+      if (route.view === 'pick') {
+        return (
+          <section>
+            <button type="button" className="link" onClick={() => history.back()}>← Back</button>
+            <h2>Add places to {collection.name}</h2>
+            <PlaceList data={data} tab="all" status="" onRefresh={refresh} onOpen={() => {}}
+              pick={{ exclude: collection.placeIds, onDone: (ids) => addPlaces(collection, ids) }} />
+          </section>
+        );
+      }
+      return (
+        <CollectionView key={collection.id} collection={collection} data={data} onSaved={saveCollection} onDeleted={dropCollection}
+          onOpen={(id) => open({ view: 'place', id })} onEdit={() => open({ view: 'collectionForm', col: collection.id })}
+          onAddPlaces={() => open({ view: 'pick', col: collection.id })} />
+      );
+    }
     if (!place) return gone('place');
     if (route.view === 'form') {
       // Keyed by version: loading the latest version after a conflict starts the form afresh.
@@ -194,7 +235,8 @@ export function App() {
     }
     return (
       <PlaceDetail key={place.id} place={place} data={data} notice={route.notice} onSaved={savePlace} onRefresh={refresh}
-        onEdit={() => open({ view: 'form', id: place.id })} onDish={(dish) => open({ view: 'dish', id: place.id, dish })} />
+        onEdit={() => open({ view: 'form', id: place.id })} onDish={(dish) => open({ view: 'dish', id: place.id, dish })}
+        onCollection={(col) => open({ view: 'collection', col })} onAddTo={() => open({ view: 'addTo', places: [place.id] })} />
     );
   }
 
@@ -219,10 +261,14 @@ export function App() {
           </div>
         ) : (
           <>
-            <div hidden={route.view !== 'list' || adding}>
-              <PlaceList data={data} tab={tab} status={status} onRefresh={refresh} onOpen={(id) => open({ view: 'place', id })} />
+            <div hidden={route.view !== 'list' || pane !== tab}>
+              <PlaceList data={data} tab={tab} status={status} onRefresh={refresh} onOpen={(id) => open({ view: 'place', id })}
+                onAddTo={(places) => open({ view: 'addTo', places })} />
             </div>
-            <div hidden={route.view !== 'list' || !adding}>
+            {route.view === 'list' && pane === 'collections' && (
+              <CollectionList data={data} onSaved={saveCollection} onOpen={(col) => open({ view: 'collection', col })} />
+            )}
+            <div hidden={route.view !== 'list' || pane !== 'add'}>
               <AddPlace key={addKey} shared={addKey ? '' : SHARED} onPick={(google) => open({ view: 'new', google })} onManual={(name) => open({ view: 'new', name })} />
             </div>
             {subView(data)}
@@ -233,7 +279,7 @@ export function App() {
       {signedIn && data && (
         <nav className="tabbar" aria-label="Sections">
           {TABS.map(([key, icon, label]) => (
-            <button key={key} type="button" aria-current={route.view === 'list' && (key === 'add' ? adding : !adding && tab === key) ? 'page' : 'false'} onClick={() => selectTab(key)}>
+            <button key={key} type="button" aria-current={route.view === 'list' && pane === key ? 'page' : 'false'} onClick={() => selectTab(key)}>
               {icon}
               <span>{label}</span>
             </button>

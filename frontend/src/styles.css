@@ -132,7 +132,7 @@ h2 { margin: 4px 0; font-size: 1.45rem; line-height: 1.2; }
 
 .tabbar button[aria-current="page"] { color: var(--text); font-weight: 800; }
 
-.tabbar button > span { padding: 1px 10px; border: 2px solid transparent; border-radius: 10px; }
+.tabbar button > span { padding: 1px 6px; border: 2px solid transparent; border-radius: 10px; white-space: nowrap; }
 .tabbar button[aria-current="page"] > span { border-color: var(--line); background: var(--sun); color: var(--on-pastel); }
 
 main {
@@ -331,6 +331,30 @@ details label { margin-top: 8px; }
 
 .dish-name { font-weight: 800; }
 .dish-note { overflow-wrap: anywhere; }
+
+/* Collections: selected cards, the selection bar above the tabs, the map (D62) */
+.card.on { border-color: var(--accent); background: var(--soft); }
+.card-main:disabled { opacity: 0.6; }
+
+.selectbar {
+  position: sticky;
+  bottom: calc(80px + env(safe-area-inset-bottom));
+  z-index: 1;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 2px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-big);
+}
+
+.map {
+  height: 60vh;
+  min-height: 280px;
+  border: 2px solid var(--line);
+  border-radius: 18px;
+  overflow: hidden;
+}
 
 /* "Copied" message */
 .toast {

@@ -27,14 +27,15 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 type Props = {
   place: Place; data: Data; notice?: string; onEdit: () => void; onDish: (dishId?: string) => void;
-  onSaved: (p: Place) => void; onRefresh: () => Promise<void>;
+  onCollection: (id: string) => void; onAddTo: () => void; onSaved: (p: Place) => void; onRefresh: () => Promise<void>;
 };
 
-export function PlaceDetail({ place, data, notice = '', onEdit, onDish, onSaved, onRefresh }: Props) {
+export function PlaceDetail({ place, data, notice = '', onEdit, onDish, onCollection, onAddTo, onSaved, onRefresh }: Props) {
   const [status, setStatus] = useState(notice);
   const [busy, setBusy] = useState(false);
   const instagram = httpsUrl(place.instagram);
   const dishes = data.dishes.filter((d) => d.place === place.id);
+  const collections = data.collections.filter((c) => c.placeIds.includes(place.id));
 
   async function toggleTried() {
     setBusy(true);
@@ -102,6 +103,14 @@ export function PlaceDetail({ place, data, notice = '', onEdit, onDish, onSaved,
           <p className="muted">No dishes yet.</p>
         )}
         <button type="button" className="button" onClick={() => onDish()}>+ Add dish</button>
+      </Section>
+      <Section title="Collections">
+        {collections.length > 0 && (
+          <div className="chips">
+            {collections.map((c) => <button key={c.id} type="button" className="chip" onClick={() => onCollection(c.id)}>{c.name}</button>)}
+          </div>
+        )}
+        <button type="button" className="button" onClick={onAddTo}>+ Add to collection</button>
       </Section>
       {text(place.address) && <p className="muted">{place.address}</p>}
     </section>

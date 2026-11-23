@@ -55,6 +55,10 @@ jobs:
         working-directory: frontend
         env:
           VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}  # public by design: identifies the sign-in client
+          # Public by design (D50, D62): the browser Maps key is restricted to this site and the Maps JavaScript API in
+          # Google Cloud; the Map ID only names a map style. Unset = the collection map says it is not set up.
+          VITE_MAPS_KEY: ${{ vars.MAPS_KEY }}
+          VITE_MAP_ID: ${{ vars.MAP_ID }}
         run: |
           npm ci
           npm run build

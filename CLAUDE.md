@@ -21,7 +21,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 ├── package.json                # Only dependency (clasp) + npm deploy scripts for apps-script/
 ├── docker-compose.yml          # Local dev for the new stack: db (Postgres 17), api (Django), web (Vite) — Docker only; api migrates on start; placeholder ALLOWED_EMAILS for dev_token
 ├── firebase.json               # Firebase Hosting: serves frontend/dist, rewrites /api/** to Cloud Run foodies-api
-├── .gitignore                  # node_modules/, every real .clasp*.json, .env*, frontend/dist, .firebaserc, *.csv (sheet exports), local Claude settings
+├── .gitignore                  # node_modules/, every real .clasp*.json, .env*, frontend/dist, .firebaserc, *.csv (sheet exports), /icon-source.* (full-size icon picture), local Claude settings
 ├── .github/
 │   ├── workflows/pages.yml     # Publishes web/ to GitHub Pages on every push to master (root) or develop (/test/)
 │   ├── workflows/api.yml       # api/: tests in the image; deploys to Cloud Run (develop → dev, master → prod) when CLOUD_DEPLOY is on

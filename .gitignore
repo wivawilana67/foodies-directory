@@ -22,3 +22,8 @@ __pycache__/
 
 # Output of collectstatic if run locally (the image runs it itself)
 api/staticfiles/
+
+# The owner's full-size icon picture: only the generated icons in frontend/public/icons/ are committed.
+/icon-source.*
+# Windows download markers copied into WSL
+*:Zone.Identifier

@@ -16,7 +16,9 @@ frontend/
 ├── tsconfig.json                      # strict; type-checks src/
 ├── vite.config.ts                     # dev server proxies /api to API_PROXY; VitePWA: manifest (icons, share_target) + service worker
 ├── index.html                         # theme-color metas, iPhone home-screen metas, early theme script
-├── public/icons/                      # icon-192, icon-512 (also maskable), apple-touch-icon (copied from web/icons/)
+├── public/icons/                      # icon-192, icon-512 (round picture, transparent corners), icon-maskable-512 (picture
+│                                      #   in the 80% safe circle on cream), apple-touch-icon (180, cream, no transparency).
+│                                      #   Made from the owner's picture (gitignored /icon-source.*) with Pillow in a throwaway container
 └── src/
     ├── main.tsx                       # React root; imports styles.css
     ├── App.tsx                        # Shell: sign-in, bootstrap load + offline copy, routes (list / place / form / dish / new /

@@ -32,7 +32,7 @@ The project ID and site address are kept out of this public file.
 - APIs enabled: Cloud Run, Artifact Registry, Secret Manager, IAM Credentials, STS, Firebase Hosting, Cloud Resource Manager.
 - Artifact Registry Docker repository `foodies` in `asia-southeast1`.
 - Service accounts `api-runtime` (no project roles; reads the two secrets) and `deployer` (`run.admin`, `artifactregistry.writer`, `firebasehosting.admin`, `serviceAccountUser` on `api-runtime`).
-- Secrets `DATABASE_URL` (Neon `dev`, pooled, `app_dev`) and `DJANGO_SECRET_KEY`, version 1 each.
+- Secrets `DATABASE_URL` (Neon `dev`, pooled) and `DJANGO_SECRET_KEY`. Correction 2026-11-23: version 1 of `DATABASE_URL` held the owner login `foodies_owner`, not `app_dev`. Version 2 (`app_dev`) was added by the owner; dev's tables, which belonged to `foodies_owner` and held no places, were dropped with the owner's approval (Neon does not let the owner hand tables to another role), `app_dev` got `CREATE` on schema `public`, and a dev deploy recreated every table as `app_dev`. Version 1 is to be disabled.
 - Workload Identity pool `github`, provider `github-repo`, condition: this repository and `refs/heads/develop` only; `deployer` grants `workloadIdentityUser` to the repository.
 - GitHub: environment `dev` (branch `develop`) with `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `DEPLOYER_SA`; repository variable `CLOUD_DEPLOY=on`.
 - First deploy 2026-11-21 from `develop`: Cloud Run service `foodies-api` (`asia-southeast1`) and the Hosting site are live; `/api/health` through the site returns `{"ok": true}` (cold ~3 s, warm ~0.3 s). This also proves the WIF login, the secrets and their IAM bindings.
@@ -54,6 +54,8 @@ Prod reuses the existing project "Foodies Directory" (the old app's key `foodies
 - Key "Foodies Maps browser (prod)": the prod site's `.web.app` / `.firebaseapp.com` addresses and Maps JavaScript API only. Quotas: "Map loads" 300 per day, "3D Map loads" 0.
 - Backup bucket `<prod project>-backups` (`us-central1`, public access prevention, uniform access, delete after 30 days); `backup-runner` has `objectCreator` on it.
 - GitHub environment `prod` (branch `master` only) with `GCP_PROJECT_ID`, `GCP_REGION`, `WIF_PROVIDER`, `DEPLOYER_SA`, `DJANGO_CSRF_TRUSTED_ORIGINS`, `BACKUP_BUCKET`, `MAPS_KEY`.
+- `DATABASE_URL`: version 2 (`app_prod`, pooled) is used; version 1 (the owner login, added by mistake) is **disabled**. `api-runtime` and `backup-runner` may read it. In Neon, `app_prod` was granted `CREATE` on schema `public` (Postgres 15+ gives a new role no table-creating rights).
+- First prod deploy 2026-11-23 (release PR #6): migrations created the tables as `app_prod`, `foodies-api` and the Hosting site are live, `/api/health` answers `{"ok": true}`, Firebase headers verified. The front end had to be re-run once because it finished before the API existed. Backup job run by hand and by Cloud Scheduler `foodies-backup-nightly` (`backup-scheduler` has `run.invoker` on the job): both succeeded.
 - Tip: run gcloud with `--billing-project <prod project>` (or the REST APIs with `X-Goog-User-Project`); the owner's default gcloud project is another one, and some calls are billed to it and fail.
 
 ## Open
@@ -62,8 +64,8 @@ Prod reuses the existing project "Foodies Directory" (the old app's key `foodies
 - [ ] Spend cap: decide whether to add one to the new dev and prod projects (replatform); whether a cap can be set on a billing-account budget is **Unverified**.
 - [ ] API key stored in a password manager?
 - [ ] Quota caps — deliberately skipped by the owner for now (see below).
-- [ ] Prod, owner: Neon role `app_prod` on branch `production` and the secret `DATABASE_URL` (pooled); Google Auth Platform (External, Testing, both Gmails) with a Web client for the prod site → variable `GOOGLE_CLIENT_ID`; a Map ID → variable `MAP_ID`.
-- [ ] Prod, after the first `master` deploy: `api-runtime` and `backup-runner` read `DATABASE_URL`; `backup-scheduler` invoker on `foodies-backup` and the scheduler job `foodies-backup-nightly`.
+- [ ] Dev: put back the Places spend counter (`places_usage`: 2026-11 = 2, 2026-11-22 = 2), disable version 1 of `DATABASE_URL`, run the backup once with `app_dev`.
+- [ ] Prod: the owner signs in with each Google account on the prod site (empty list until the switch-over import).
 
 ## Quota caps (recommended if revisited)
 

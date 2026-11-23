@@ -38,7 +38,7 @@ The project ID and site address are kept out of this public file.
 - First deploy 2026-11-21 from `develop`: Cloud Run service `foodies-api` (`asia-southeast1`) and the Hosting site are live; `/api/health` through the site returns `{"ok": true}` (cold ~3 s, warm ~0.3 s). This also proves the WIF login, the secrets and their IAM bindings.
 - 2026-11-22: the Phase 2 deploy created the Cloud Run job `foodies-migrate` (runs `manage.py migrate` as `api-runtime` with the same secrets) and its first execution succeeded, so the tables exist on Neon `dev`. The deployer's `run.admin` covered creating and running the job; no new role was needed.
 - 2026-11-22, Phase 3 setup round (dev): Google Auth Platform with External audience in Testing mode and both Gmails as test users; a Web OAuth client for the dev site and `http://localhost:5173`; Places API (New) enabled with a server key restricted to it; secrets `ALLOWED_EMAILS` and `PLACES_API_KEY` readable by `api-runtime`; GitHub `dev` variables `GOOGLE_CLIENT_ID` and `DJANGO_CSRF_TRUSTED_ORIGINS`. The photo bucket was not created (photos dropped, D57). Sign-in and a name lookup verified on the dev site by the owner.
-- 2026-11-23, collection map (dev): Maps JavaScript API and API Keys API enabled; browser key "Foodies Maps browser (dev)" restricted to the dev site's `.web.app` and `.firebaseapp.com` addresses and to Maps JavaScript API only; its value set as the GitHub `dev` variable `MAPS_KEY` without being printed. Cloud Quotas API enabled. Done from the owner's gcloud sign-in.
+- 2026-11-23, collection map (dev): Maps JavaScript API and API Keys API enabled; browser key "Foodies Maps browser (dev)" restricted to the dev site's `.web.app` and `.firebaseapp.com` addresses and to Maps JavaScript API only; its value set as the GitHub `dev` variable `MAPS_KEY` without being printed. Cloud Quotas API enabled. Map ID (JavaScript, vector) created by the owner in Map management and set as the GitHub `dev` variable `MAP_ID`. Daily quotas set through the Cloud Quotas API with the owner's go-ahead: "Map loads" 300 per day, "3D Map loads" 0. Done from the owner's gcloud sign-in. Verified: a real map with a pin loads from the dev site's address with the deployed key and Map ID.
 - Firebase CLI warns it cannot check API enablement without `roles/serviceusage.serviceUsageConsumer` on `deployer`; harmless, the deploy succeeds.
 
 ## Open
@@ -47,7 +47,7 @@ The project ID and site address are kept out of this public file.
 - [ ] Spend cap: decide whether to add one to the new dev and prod projects (replatform); whether a cap can be set on a billing-account budget is **Unverified**.
 - [ ] API key stored in a password manager?
 - [ ] Quota caps — deliberately skipped by the owner for now (see below).
-- [ ] Collection map (D50, D62), dev: still to do: a Map ID (JavaScript, vector; console only, no gcloud command) and the GitHub `dev` variable `MAP_ID`; the daily "Map loads" quota at 300 (and 3D map loads at 0), which needs the console's confirmation of a large decrease. Until `MAP_ID` exists the map says it is not set up.
+- [ ] Collection map for **prod** at the switch-over: the same as dev below (key restricted to the prod site, Map ID, GitHub `prod` variables `MAPS_KEY` / `MAP_ID`, daily caps).
 
 ## Quota caps (recommended if revisited)
 

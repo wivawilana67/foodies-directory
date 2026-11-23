@@ -4,8 +4,7 @@ import { httpsUrl, locationOf, mapsHref, placeText, text } from './format';
 import { copyText, toast } from './Toast';
 import type { Data, Place } from './types';
 
-// Place detail (port of renderPlace in web/place.js, without photos: D57). Dishes are listed here; adding and
-// editing them comes in Phase 4c.
+// Place detail (port of renderPlace in web/place.js, without photos: D57). Tapping a dish opens it in DishForm.
 
 const LIKED = { Yes: '👍', No: '👎', '': '' };
 
@@ -26,10 +25,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-type Props = { place: Place; data: Data; onEdit: () => void; onSaved: (p: Place) => void; onRefresh: () => Promise<void> };
+type Props = {
+  place: Place; data: Data; notice?: string; onEdit: () => void; onDish: (dishId?: string) => void;
+  onSaved: (p: Place) => void; onRefresh: () => Promise<void>;
+};
 
-export function PlaceDetail({ place, data, onEdit, onSaved, onRefresh }: Props) {
-  const [status, setStatus] = useState('');
+export function PlaceDetail({ place, data, notice = '', onEdit, onDish, onSaved, onRefresh }: Props) {
+  const [status, setStatus] = useState(notice);
   const [busy, setBusy] = useState(false);
   const instagram = httpsUrl(place.instagram);
   const dishes = data.dishes.filter((d) => d.place === place.id);
@@ -82,21 +84,24 @@ export function PlaceDetail({ place, data, onEdit, onSaved, onRefresh }: Props) 
         })}
       </Section>
       <Section title="Price per person"><p>{text(place.price) || '—'}</p></Section>
-      <Section title="Best dish"><p>{text(place.bestDish) || 'No best dish yet.'}</p></Section>
+      <Section title="Best dish"><p>{text(place.bestDish) || 'Star a dish below to set it.'}</p></Section>
       <Section title="Dishes">
         {dishes.length ? (
           <ul className="dishes">
             {dishes.map((d) => (
-              <li key={d.id} className="dish">
-                <span className="dish-name">{[LIKED[d.liked], d.name, d.best ? '⭐' : ''].filter(Boolean).join(' ')}</span>
-                {text(d.price) && <span className="muted">{d.price}</span>}
-                {text(d.note) && <span className="dish-note muted">{d.note}</span>}
+              <li key={d.id}>
+                <button type="button" className="dish" onClick={() => onDish(d.id)}>
+                  <span className="dish-name">{[LIKED[d.liked], d.name, d.best ? '⭐' : ''].filter(Boolean).join(' ')}</span>
+                  {text(d.price) && <span className="muted">{d.price}</span>}
+                  {text(d.note) && <span className="dish-note muted">{d.note}</span>}
+                </button>
               </li>
             ))}
           </ul>
         ) : (
           <p className="muted">No dishes yet.</p>
         )}
+        <button type="button" className="button" onClick={() => onDish()}>+ Add dish</button>
       </Section>
       {text(place.address) && <p className="muted">{place.address}</p>}
     </section>

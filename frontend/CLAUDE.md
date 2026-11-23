@@ -1,8 +1,8 @@
 # frontend — Developer and Agent Guide
 
-The new phone app (replatform, `docs/decisions.md` D39–D59): React + TypeScript + Vite, built to static files and served by Firebase Hosting, which sends `/api/**` to Cloud Run (`firebase.json`). **Phase 4b**: sign-in, the All / Wishlist / Near me lists (search, label chips, filters, score or distance sort, Copy list, copy per card), place detail (Maps, Instagram, Copy, Share, Mark as tried, scores, dishes listed) and the edit form with the conflict check, Settings with sign-out, and an offline copy of `/api/bootstrap`. Still to come: adding and editing dishes and Add a place (4c), theme setting, install and service worker (4d). The live app is still `web/` until the switch-over; its rules (iPhone Safari without install, location stays on the phone, Sticker design) carry over.
+The new phone app (replatform, `docs/decisions.md` D39–D60): React + TypeScript + Vite, built to static files and served by Firebase Hosting, which sends `/api/**` to Cloud Run (`firebase.json`). **Phase 4c**: sign-in, the All / Wishlist / Near me lists (search, label chips, filters, score or distance sort, Copy list, copy per card), place detail (Maps, Instagram, Copy, Share, Mark as tried, scores, dishes), the edit form with the conflict check, adding, editing and deleting dishes (Best Dish from starred dishes), the Add tab (Google lookup by link or name, Paste, add by name, Android share link read from the address), Settings with sign-out, and an offline copy of `/api/bootstrap`. Still to come (4d): theme setting, the web app manifest (install, icons, the share target itself) and the service worker. The live app is still `web/` until the switch-over; its rules (iPhone Safari without install, location stays on the phone, Sticker design) carry over.
 
-Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.md` D39–D59 and `web/CLAUDE.md` (behaviour being ported).
+Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.md` D39–D60 and `web/CLAUDE.md` (behaviour being ported).
 
 ---
 
@@ -17,18 +17,21 @@ frontend/
 ├── index.html
 └── src/
     ├── main.tsx                       # React root; imports styles.css
-    ├── App.tsx                        # Shell: sign-in, bootstrap load + offline copy, routes (list / place / form / settings),
-    │                                  #   top bar, bottom tabs, Back button, savePlace (merges a saved place into data + cache)
+    ├── App.tsx                        # Shell: sign-in, bootstrap load + offline copy, routes (list / place / form / dish / new /
+    │                                  #   settings), top bar, bottom tabs incl. Add, Back button, readShare (Android share link),
+    │                                  #   savePlace / addedPlace / saveDish (merge replies into data + cache)
     ├── SignIn.tsx                     # Google Sign-In button; in the Vite dev server only, a "Local dev token" field
     ├── PlaceList.tsx                  # All / Wishlist / Near me (port of web/list.js): search, filters, label chips, sort, cards
-    ├── PlaceDetail.tsx                # Place detail (port of renderPlace): actions, scores, price, best dish, dishes (read-only)
-    ├── PlaceForm.tsx                  # Edit form (port of openForm / formFields): ChoiceField, LabelsField, suggest fields
+    ├── PlaceDetail.tsx                # Place detail (port of renderPlace): actions, scores, price, best dish, dishes, + Add dish
+    ├── PlaceForm.tsx                  # Add + edit form (port of openForm / formFields): ChoiceField, LabelsField, suggest fields
+    ├── DishForm.tsx                   # Add / edit / delete a dish (port of web/dishes.js, no photos); replies carry bestDish
+    ├── AddPlace.tsx                   # Add tab (port of web/add.js): lookup, Paste, result cards with Pick, add by name
     ├── Settings.tsx                   # Signed-in name, Sign out, Sign out on every device (second tap confirms)
     ├── Toast.tsx                      # toast(message) + <Toast />, copyText (clipboard with textarea fallback)
     ├── api.ts                         # api(path, method, body), ApiError, patchPlace, token + cache in localStorage
     ├── format.ts                      # Ported helpers: text, areaOf, locationOf, unique, coordsOf, formatKm, mapsHref,
     │                                  #   placeText, averageRank, distanceKm, getPosition
-    ├── types.ts                       # API JSON shapes (Place, Dish, Person, Collection, Options, Data)
+    ├── types.ts                       # API JSON shapes (Place, Dish, Person, Collection, Options, Data, LookupResult)
     ├── styles.css                     # "Sticker" tokens and components ported from web/styles.css (light + dark)
     ├── fonts/                         # Nunito + Fredoka woff2 and OFL licences (copied from web/fonts/), bundled by Vite
     ├── google.d.ts                    # Types for the Google Identity Services script
@@ -57,7 +60,10 @@ The `web` container runs as user `node` (uid 1000), so `node_modules/` and `pack
 - Reuse before writing: `api()` for every call, `format.ts` for anything web/ui.js or web/geo.js did, `copyText` / `toast` for clipboard and messages.
 - Behaviour follows `web/CLAUDE.md` § 4–6: location stays on the phone (`getPosition` → `distanceKm`), touch targets at least 44 px, status lines with `role="status"`, no browser dialogs (a second tap confirms), sub-views push a history entry so the phone's Back returns, tabs replace it.
 - Filtering and sorting run on every render, without memoising: cheap for 1,000+ places.
-- Routes live in `history.state` as `{view, id}` (`App.tsx`), so the phone's Back and a reload keep the view. The list stays mounted (hidden) under sub-views, so search, filters, chips and the scroll position survive opening a place.
+- Routes live in `history.state` (`Route` in `App.tsx`: `view`, place `id`, `dish`, a picked `google` result or a typed `name`, a `notice`), so the phone's Back and a reload keep the view. The list and the Add tab stay mounted (hidden) under sub-views, so search, filters, chips, lookup results and the scroll position survive opening a place.
+- Adding a place: the Add tab looks up only on **Search** (each lookup can be a paid Places call). **Pick** opens the form filled from the result, which sends only the `placeId` plus the filled-in fields (`POST /api/places`; Google data comes from the server's cache, D12). On save the form's history entry is replaced by the new place's detail, with "Saved." or "This place was already in your list." (same Google place), so Back returns to a cleared Add tab.
+- Android share target: `readShare` in `App.tsx` reads `?url=&text=&title=` once at load, cleans the address and opens the Add tab with the text filled in. The manifest's `share_target` that sends those comes with 4d, so until then this path is reached only by such an address.
+- Dishes are last-write-wins (D25). Each dish reply (`POST /api/dishes`, `PATCH` / `DELETE /api/dishes/<id>`) carries the place's `bestDish`, which is merged without changing the place's `version`. Delete needs a second tap.
 - Edits go through `patchPlace` with the version the phone loaded and only the changed fields and ratings (D24). On `409`: the form keeps the user's input, shows the server's message and offers **Load latest (drops your edits)**, which refreshes; the form is keyed by `id:version`, so it restarts with the new values. **Mark as tried** on the detail view refreshes at once and asks to try again (D59).
 - Buttons may wrap (`.button` has no `nowrap`, unlike `web/styles.css`), so long labels never widen the page on a 320 px phone.
 

@@ -64,3 +64,18 @@ export type Data = {
   collections: Collection[];
   me: number;
 };
+
+// One result of POST /api/lookup (api/foodies/places.py). Adding it sends only `placeId`; the server takes the
+// Google data from its own cache (D12).
+export type LookupResult = {
+  placeId: string;
+  name: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+  country: string;
+  city: string;
+  district: string;
+  googleCategory: string;
+  mapsUrl: string;
+};

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ApiError, patchPlace } from './api';
+import { ApiError, api, patchPlace } from './api';
 import { text, unique } from './format';
-import type { Data, Place, Rating } from './types';
+import type { Data, LookupResult, Place, Rating } from './types';
 
-// Edit form (port of openForm / formFields in web/place.js). Sends only changed fields and ratings with the
-// version it opened (D24); a 409 offers to load the latest version. The API checks every value again (clean.py).
+// Add / edit form (port of openForm / formFields in web/place.js). Editing sends only changed fields and ratings with
+// the version it opened (D24); a 409 offers to load the latest version. Adding sends the filled-in fields, plus the
+// lookup result's placeId when picked from Google. The API checks every value again (clean.py).
 
 const NEW = '__new__';
 type Kind = 'text' | 'url' | 'choice' | 'suggest' | 'check';
@@ -29,6 +30,7 @@ const BOTTOM: Field[] = [
   ['closed', 'Closed for good', 'check'],
 ];
 const KEYS = [...TOP, ['tried'] as const, ...BOTTOM].map(([key]) => key);
+const EMPTY: Values = Object.fromEntries(KEYS.map((k) => [k, k === 'tried' || k === 'closed' ? false : ''])) as Values;
 
 // A Master list as a select; "+ Add new…" shows a text box. A value missing from the list is still offered.
 function ChoiceField({ label, options, value, onChange }: { label: string; options: string[]; value: string; onChange: (v: string) => void }) {
@@ -80,15 +82,23 @@ function LabelsField({ labels, used, draft, onDraft, onChange }: { labels: strin
   );
 }
 
-type Props = { place: Place; data: Data; onSaved: (p: Place) => void; onRefresh: () => Promise<void> };
+// place: edit it. google: a picked lookup result to add. Neither: a new place typed by hand, starting with `name`.
+type Props = {
+  place?: Place; google?: LookupResult; name?: string; data: Data;
+  onSaved: (p: Place, duplicate?: boolean) => void; onRefresh: () => Promise<void>;
+};
 
-export function PlaceForm({ place, data, onSaved, onRefresh }: Props) {
-  const [values, setValues] = useState<Values>(() => Object.fromEntries(KEYS.map((k) => [k, place[k]])) as Values);
-  const [labels, setLabels] = useState(place.labels);
+export function PlaceForm({ place, google, name = '', data, onSaved, onRefresh }: Props) {
+  // A new place is compared with an empty one, so only filled-in fields are sent.
+  const before = place ?? { ...EMPTY, labels: [] as string[], ratings: {} as Place['ratings'] };
+  const [values, setValues] = useState<Values>(() => (place
+    ? Object.fromEntries(KEYS.map((k) => [k, place[k]])) as Values
+    : { ...EMPTY, ...(google ? { name: google.name, country: google.country, city: google.city, district: google.district, mapsLink: google.mapsUrl } : { name }) }));
+  const [labels, setLabels] = useState(before.labels);
   const [draft, setDraft] = useState('');
   const [ratings, setRatings] = useState<Record<string, Rating>>(() =>
-    Object.fromEntries(data.people.map((p) => [p.id, place.ratings[String(p.id)] ?? { score: '', review: '' }])));
-  const [status, setStatus] = useState('');
+    Object.fromEntries(data.people.map((p) => [p.id, before.ratings[String(p.id)] ?? { score: '', review: '' }])));
+  const [status, setStatus] = useState(google ? `From Google: ${text(google.address)}` : '');
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
   const set = (key: keyof Values, value: string | boolean) => setValues({ ...values, [key]: value });
@@ -128,25 +138,31 @@ export function PlaceForm({ place, data, onSaved, onRefresh }: Props) {
     const changes: Record<string, unknown> = {};
     for (const key of KEYS) {
       const value = values[key];
-      if (typeof value === 'boolean' ? value !== place[key] : text(value) !== text(place[key])) changes[key] = typeof value === 'boolean' ? value : text(value);
+      if (typeof value === 'boolean' ? value !== before[key] : text(value) !== text(before[key])) changes[key] = typeof value === 'boolean' ? value : text(value);
     }
-    if (finalLabels.join('\n') !== place.labels.join('\n')) changes.labels = finalLabels;
+    if (finalLabels.join('\n') !== before.labels.join('\n')) changes.labels = finalLabels;
     const ratingChanges: Record<string, Partial<Rating>> = {};
     for (const person of data.people) {
-      const before = place.ratings[String(person.id)];
+      const old = before.ratings[String(person.id)];
       const entry: Partial<Rating> = {};
       for (const f of ['score', 'review'] as const) {
-        if (text(ratings[person.id][f]) !== text(before?.[f])) entry[f] = text(ratings[person.id][f]);
+        if (text(ratings[person.id][f]) !== text(old?.[f])) entry[f] = text(ratings[person.id][f]);
       }
       if (Object.keys(entry).length) ratingChanges[person.id] = entry;
     }
     if (!text(values.name)) return setStatus('Name is required');
-    if (!Object.keys(changes).length && !Object.keys(ratingChanges).length) return history.back();
+    if (place && !Object.keys(changes).length && !Object.keys(ratingChanges).length) return history.back();
     setBusy(true);
     setStatus('Saving…');
     try {
-      onSaved(await patchPlace(place, changes, ratingChanges));
-      history.back();
+      if (place) {
+        onSaved(await patchPlace(place, changes, ratingChanges));
+        history.back();
+      } else {
+        // The caller replaces this view with the new place's detail.
+        const r = await api<{ duplicate: boolean; place: Place }>('/api/places', 'POST', { placeId: google?.placeId ?? '', fields: changes, ratings: ratingChanges });
+        onSaved(r.place, r.duplicate);
+      }
     } catch (e) {
       setConflict(e instanceof ApiError && e.status === 409);
       setStatus((e as Error).message);
@@ -157,7 +173,7 @@ export function PlaceForm({ place, data, onSaved, onRefresh }: Props) {
   return (
     <section>
       <button type="button" className="link" onClick={() => history.back()}>← Back</button>
-      <h2>Edit {place.name}</h2>
+      <h2>{place ? `Edit ${place.name}` : 'New place'}</h2>
       <form onSubmit={save}>
         <div className="fields">
           {TOP.map(field)}

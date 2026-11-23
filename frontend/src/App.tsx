@@ -1,24 +1,45 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { AddPlace } from './AddPlace';
 import { ApiError, api, hasToken, readCache, setToken, writeCache } from './api';
+import { DishForm, type DishReply } from './DishForm';
 import { PlaceDetail } from './PlaceDetail';
 import { PlaceForm } from './PlaceForm';
 import { PlaceList, type Tab } from './PlaceList';
 import { Settings } from './Settings';
 import { SignIn } from './SignIn';
 import { Toast } from './Toast';
-import type { Data, Place } from './types';
+import type { Data, LookupResult, Place } from './types';
 
 // App shell: sign-in, the saved copy of /api/bootstrap (instant start, offline), top bar, bottom tabs and the
-// phone's Back button. Sub-views (place, form, settings) push a history entry holding {view, id}; tabs replace it.
-// The list stays mounted (hidden) under sub-views, so search, filters and scroll position survive a visit.
+// phone's Back button. Sub-views push a history entry holding the route; tabs replace it. The list and the Add tab
+// stay mounted (hidden) under sub-views, so search, filters, lookup results and scroll position survive a visit.
 
-type Route = { view: 'list' | 'settings' | 'place' | 'form'; id?: string };
+// place / form / dish: `id` is the place; dish: `dish` is the dish (none = new); new: a place to add, from a
+// lookup result (`google`) or typed by hand (`name`). `notice` is shown on a place just added.
+type Route = {
+  view: 'list' | 'settings' | 'place' | 'form' | 'dish' | 'new';
+  id?: string; dish?: string; google?: LookupResult; name?: string; notice?: string;
+};
 const LIST: Route = { view: 'list' };
-const TABS: [Tab, string, string][] = [
+const TABS: [Tab | 'add', string, string][] = [
   ['all', '📋', 'All'],
   ['wishlist', '🔖', 'Wishlist'],
   ['near', '📍', 'Near me'],
+  ['add', '➕', 'Add'],
 ];
+
+// Android's share target opens ./?title=…&text=…&url=… (manifest share_target); the shared text goes to the Add
+// tab. Read once at load, before the address is cleaned.
+function readShare() {
+  const params = new URLSearchParams(location.search);
+  const shared = ['url', 'text', 'title'].map((k) => params.get(k)).filter(Boolean).join('\n');
+  if (shared) history.replaceState(LIST, '', location.pathname);
+  return shared;
+}
+const SHARED = readShare();
+
+const upsert = <T extends { id: string }>(list: T[], item: T) =>
+  list.some((x) => x.id === item.id) ? list.map((x) => (x.id === item.id ? item : x)) : [...list, item];
 
 export function App() {
   const [signedIn, setSignedIn] = useState(hasToken);
@@ -26,6 +47,8 @@ export function App() {
   const [data, setData] = useState(readCache);
   const [status, setStatus] = useState('');
   const [tab, setTab] = useState<Tab>('all');
+  const [adding, setAdding] = useState(Boolean(SHARED)); // the Add tab is showing
+  const [addKey, setAddKey] = useState(0); // bumped after an add, to clear the Add tab
   const [route, setRoute] = useState<Route>(() => (history.state?.view ? history.state : LIST)); // a reload keeps the view
   const listScroll = useRef(0);
 
@@ -80,42 +103,73 @@ export function App() {
     setRoute(next);
   }
 
-  function selectTab(next: Tab) {
+  function selectTab(next: Tab | 'add') {
     listScroll.current = 0;
     history.replaceState(LIST, '');
-    setTab(next);
+    setAdding(next === 'add');
+    if (next !== 'add') setTab(next);
     setRoute(LIST);
   }
 
-  // A saved place replaces its old copy in the data and in the offline copy.
-  function savePlace(place: Place) {
+  // Every save updates the data and the offline copy.
+  function change(edit: (d: Data) => Data) {
     setData((now) => {
       if (!now) return now;
-      const next = { ...now, places: now.places.map((p) => (p.id === place.id ? place : p)) };
+      const next = edit(now);
       writeCache(next);
       return next;
     });
   }
 
+  const savePlace = (place: Place) => change((d) => ({ ...d, places: upsert(d.places, place) }));
+
+  // A new place (or the one already in the list) replaces the add form, so Back returns to the Add tab, cleared.
+  function addedPlace(place: Place, duplicate?: boolean) {
+    savePlace(place);
+    setAddKey((k) => k + 1);
+    const next: Route = { view: 'place', id: place.id, notice: duplicate ? 'This place was already in your list.' : 'Saved.' };
+    history.replaceState(next, '');
+    setRoute(next);
+  }
+
+  // A dish reply carries the place's new Best Dish (derived, so the place's version does not change).
+  function saveDish(reply: DishReply, removed?: string) {
+    const placeId = route.id;
+    change((d) => ({
+      ...d,
+      dishes: removed ? d.dishes.filter((x) => x.id !== removed) : reply.dish ? upsert(d.dishes, reply.dish) : d.dishes,
+      places: d.places.map((p) => (p.id === placeId ? { ...p, bestDish: reply.bestDish } : p)),
+    }));
+  }
+
   const me = data?.people.find((p) => p.id === data.me);
   const place = data?.places.find((p) => p.id === route.id);
+
+  const gone = (what: string) => (
+    <section>
+      <button type="button" className="link" onClick={() => history.back()}>← Back</button>
+      <p className="muted">This {what} is no longer in the list.</p>
+    </section>
+  );
 
   function subView(data: Data) {
     if (route.view === 'settings') return <Settings name={me?.name ?? ''} onSignOut={signOut} />;
     if (route.view === 'list') return null;
-    if (!place) {
-      return (
-        <section>
-          <button type="button" className="link" onClick={() => history.back()}>← Back</button>
-          <p className="muted">This place is no longer in the list.</p>
-        </section>
-      );
-    }
+    if (route.view === 'new') return <PlaceForm google={route.google} name={route.name} data={data} onSaved={addedPlace} onRefresh={refresh} />;
+    if (!place) return gone('place');
     if (route.view === 'form') {
       // Keyed by version: loading the latest version after a conflict starts the form afresh.
       return <PlaceForm key={`${place.id}:${place.version}`} place={place} data={data} onSaved={savePlace} onRefresh={refresh} />;
     }
-    return <PlaceDetail key={place.id} place={place} data={data} onEdit={() => open({ view: 'form', id: place.id })} onSaved={savePlace} onRefresh={refresh} />;
+    if (route.view === 'dish') {
+      const dish = data.dishes.find((d) => d.id === route.dish);
+      if (route.dish && !dish) return gone('dish');
+      return <DishForm key={route.dish ?? 'new'} place={place} dish={dish} onSaved={saveDish} />;
+    }
+    return (
+      <PlaceDetail key={place.id} place={place} data={data} notice={route.notice} onSaved={savePlace} onRefresh={refresh}
+        onEdit={() => open({ view: 'form', id: place.id })} onDish={(dish) => open({ view: 'dish', id: place.id, dish })} />
+    );
   }
 
   return (
@@ -136,8 +190,11 @@ export function App() {
           </div>
         ) : (
           <>
-            <div hidden={route.view !== 'list'}>
+            <div hidden={route.view !== 'list' || adding}>
               <PlaceList data={data} tab={tab} status={status} onRefresh={refresh} onOpen={(id) => open({ view: 'place', id })} />
+            </div>
+            <div hidden={route.view !== 'list' || !adding}>
+              <AddPlace key={addKey} shared={addKey ? '' : SHARED} onPick={(google) => open({ view: 'new', google })} onManual={(name) => open({ view: 'new', name })} />
             </div>
             {subView(data)}
           </>
@@ -147,7 +204,7 @@ export function App() {
       {signedIn && data && (
         <nav className="tabbar" aria-label="Sections">
           {TABS.map(([key, icon, label]) => (
-            <button key={key} type="button" aria-current={route.view === 'list' && tab === key ? 'page' : 'false'} onClick={() => selectTab(key)}>
+            <button key={key} type="button" aria-current={route.view === 'list' && (key === 'add' ? adding : !adding && tab === key) ? 'page' : 'false'} onClick={() => selectTab(key)}>
               {icon}
               <span>{label}</span>
             </button>

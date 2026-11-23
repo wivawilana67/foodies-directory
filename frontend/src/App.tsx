@@ -38,6 +38,9 @@ function readShare() {
 }
 const SHARED = readShare();
 
+// Chrome's install prompt event (not in TypeScript's DOM types).
+type InstallPrompt = Event & { prompt: () => Promise<void>; userChoice: Promise<unknown> };
+
 const upsert = <T extends { id: string }>(list: T[], item: T) =>
   list.some((x) => x.id === item.id) ? list.map((x) => (x.id === item.id ? item : x)) : [...list, item];
 
@@ -51,6 +54,7 @@ export function App() {
   const [addKey, setAddKey] = useState(0); // bumped after an add, to clear the Add tab
   const [route, setRoute] = useState<Route>(() => (history.state?.view ? history.state : LIST)); // a reload keeps the view
   const listScroll = useRef(0);
+  const [install, setInstall] = useState<InstallPrompt | null>(null);
 
   // Signing out forgets the token and the saved list on this phone.
   const signOut = useCallback((message: string) => {
@@ -86,6 +90,28 @@ export function App() {
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
+
+  // Android (Chrome): an "Install app" button when the browser offers it. iPhone gets a hint in Settings.
+  useEffect(() => {
+    const offer = (event: Event) => {
+      event.preventDefault();
+      setInstall(event as InstallPrompt);
+    };
+    const done = () => setInstall(null);
+    window.addEventListener('beforeinstallprompt', offer);
+    window.addEventListener('appinstalled', done);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', offer);
+      window.removeEventListener('appinstalled', done);
+    };
+  }, []);
+
+  async function installApp() {
+    if (!install) return;
+    await install.prompt();
+    await install.userChoice;
+    setInstall(null);
+  }
 
   // Back to the list returns to where it was scrolled; sub-views start at the top.
   useLayoutEffect(() => {
@@ -176,9 +202,12 @@ export function App() {
     <>
       <header className="topbar">
         <h1>Foodies</h1>
-        {signedIn && (
-          <button type="button" className="topbar-button" aria-label="Settings" onClick={() => open({ view: 'settings' })}>⚙</button>
-        )}
+        <div className="row">
+          {install && <button type="button" className="topbar-button" onClick={installApp}>Install app</button>}
+          {signedIn && (
+            <button type="button" className="topbar-button" aria-label="Settings" onClick={() => open({ view: 'settings' })}>⚙</button>
+          )}
+        </div>
       </header>
       <main>
         {!signedIn ? (

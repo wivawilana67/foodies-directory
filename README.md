@@ -167,7 +167,7 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 
 ## Local development (new stack, Docker only)
 
-The replatform (`docs/decisions.md` D39–D60) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
+The replatform (`docs/decisions.md` D39–D61) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
 
 ```bash
 sudo apt update && sudo apt install -y docker.io docker-compose-v2
@@ -181,6 +181,7 @@ Then, from the repo root:
 | Start database, API and web | `docker compose up` → http://localhost:5173 (API on http://localhost:8000); the API applies migrations on every start, so a wiped database gets its tables back |
 | API tests | `docker compose run --rm api python manage.py test` |
 | Front-end type-check + build | `docker compose run --rm web npm run build` |
+| Try the built app (service worker, install) | `docker compose run -d --rm --name foodies-preview -p 127.0.0.1:4173:4173 web npx vite preview --host 0.0.0.0 --port 4173` → http://localhost:4173; stop with `docker stop foodies-preview` |
 | Create / apply database migrations | `docker compose run --rm api python manage.py makemigrations` / `… migrate` |
 | Admin site (table view of all data) | `docker compose run --rm api python manage.py createsuperuser` once, then http://localhost:8000/api/admin/ |
 | Import the sheet (CSV exports of Food List, Dishes, Master in `api/`) | `docker compose run --rm api python manage.py import_sheet --people "Name1,Name2" --places food-list.csv --dishes dishes.csv --master master.csv` (add `--dry-run` to check first) |

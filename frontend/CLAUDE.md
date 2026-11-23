@@ -1,8 +1,8 @@
 # frontend — Developer and Agent Guide
 
-The new phone app (replatform, `docs/decisions.md` D39–D60): React + TypeScript + Vite, built to static files and served by Firebase Hosting, which sends `/api/**` to Cloud Run (`firebase.json`). **Phase 4c**: sign-in, the All / Wishlist / Near me lists (search, label chips, filters, score or distance sort, Copy list, copy per card), place detail (Maps, Instagram, Copy, Share, Mark as tried, scores, dishes), the edit form with the conflict check, adding, editing and deleting dishes (Best Dish from starred dishes), the Add tab (Google lookup by link or name, Paste, add by name, Android share link read from the address), Settings with sign-out, and an offline copy of `/api/bootstrap`. Still to come (4d): theme setting, the web app manifest (install, icons, the share target itself) and the service worker. The live app is still `web/` until the switch-over; its rules (iPhone Safari without install, location stays on the phone, Sticker design) carry over.
+The new phone app (replatform, `docs/decisions.md` D39–D61): React + TypeScript + Vite, built to static files and served by Firebase Hosting, which sends `/api/**` to Cloud Run (`firebase.json`). **Phase 4 complete**: sign-in, the All / Wishlist / Near me lists (search, label chips, filters, score or distance sort, Copy list, copy per card), place detail (Maps, Instagram, Copy, Share, Mark as tried, scores, dishes), the edit form with the conflict check, adding, editing and deleting dishes (Best Dish from starred dishes), the Add tab (Google lookup by link or name, Paste, add by name, Android share target), Settings (theme, sign-out, iPhone home-screen hint), the **Install app** button on Android, and a service worker so the app opens offline with the saved copy of `/api/bootstrap`. Next: Collections with the map (Phase 5). The live app is still `web/` until the switch-over; its rules (iPhone Safari without install, location stays on the phone, Sticker design) carry over.
 
-Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.md` D39–D60 and `web/CLAUDE.md` (behaviour being ported).
+Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.md` D39–D61 and `web/CLAUDE.md` (behaviour being ported).
 
 ---
 
@@ -11,10 +11,12 @@ Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.m
 ```
 frontend/
 ├── CLAUDE.md, AGENTS.md
-├── package.json, package-lock.json   # React 19, Vite 8, TypeScript 5.9; commit the lockfile
+├── package.json, package-lock.json   # React 19, Vite 8, TypeScript 5.9, vite-plugin-pwa (build only); commit the lockfile.
+│                                      #   `overrides` pins patched glob / minimatch under workbox-build (D61)
 ├── tsconfig.json                      # strict; type-checks src/
-├── vite.config.ts                     # dev server proxies /api to API_PROXY (the api container)
-├── index.html
+├── vite.config.ts                     # dev server proxies /api to API_PROXY; VitePWA: manifest (icons, share_target) + service worker
+├── index.html                         # theme-color metas, iPhone home-screen metas, early theme script
+├── public/icons/                      # icon-192, icon-512 (also maskable), apple-touch-icon (copied from web/icons/)
 └── src/
     ├── main.tsx                       # React root; imports styles.css
     ├── App.tsx                        # Shell: sign-in, bootstrap load + offline copy, routes (list / place / form / dish / new /
@@ -26,7 +28,9 @@ frontend/
     ├── PlaceForm.tsx                  # Add + edit form (port of openForm / formFields): ChoiceField, LabelsField, suggest fields
     ├── DishForm.tsx                   # Add / edit / delete a dish (port of web/dishes.js, no photos); replies carry bestDish
     ├── AddPlace.tsx                   # Add tab (port of web/add.js): lookup, Paste, result cards with Pick, add by name
-    ├── Settings.tsx                   # Signed-in name, Sign out, Sign out on every device (second tap confirms)
+    ├── Settings.tsx                   # Signed-in name, Sign out, Sign out on every device (second tap confirms), Theme,
+    │                                  #   iPhone "Add to Home Screen" hint
+    ├── theme.ts                       # getTheme / saveTheme / applyTheme (port of web/app.js): data-theme + theme-color metas
     ├── Toast.tsx                      # toast(message) + <Toast />, copyText (clipboard with textarea fallback)
     ├── api.ts                         # api(path, method, body), ApiError, patchPlace, token + cache in localStorage
     ├── format.ts                      # Ported helpers: text, areaOf, locationOf, unique, coordsOf, formatKm, mapsHref,
@@ -44,7 +48,8 @@ frontend/
 |---|---|
 | Dev server (with API and database) | `docker compose up`, then http://localhost:5173 |
 | Add a package | `docker compose run --rm web npm install <package>` |
-| Type-check + build | `docker compose run --rm web npm run build` |
+| Type-check + build | `docker compose run --rm web npm run build` (also writes `dist/sw.js` and `dist/manifest.webmanifest`) |
+| Try the built app with its service worker | `docker compose run -d --rm --name foodies-preview -p 127.0.0.1:4173:4173 web npx vite preview --host 0.0.0.0 --port 4173`, then http://localhost:4173 (no **Local dev token** field in a build); `docker stop foodies-preview` |
 | Sample data + local sign-in | `docker compose run --rm api python manage.py seed_sample` once, then `… dev_token`; paste the token into **Local dev token** (api/CLAUDE.md § 5) |
 
 The `web` container runs as user `node` (uid 1000), so `node_modules/` and `package-lock.json` in `frontend/` belong to you. `node_modules/` and `dist/` are gitignored.
@@ -56,13 +61,16 @@ The `web` container runs as user `node` (uid 1000), so `node_modules/` and `pack
 - No secrets in the build: `VITE_*` values (Google client ID, Maps key, Map ID) are public by design and come from GitHub environment variables at build time. `VITE_GOOGLE_CLIENT_ID` comes from the environment's `GOOGLE_CLIENT_ID`; without it the page says sign-in is not configured.
 - Sign-in uses Google Identity Services, loaded from `https://accounts.google.com/gsi/client` when needed (the one external script, part of D43). The app token from `/api/auth/google` is sent as `Authorization: Bearer`. A `401` from `/api/bootstrap` signs out with the server's message.
 - The **Local dev token** field exists only under `import.meta.env.DEV` (the Vite dev server), so production builds do not contain it (D58).
-- localStorage keys, every access wrapped in try/catch (private browsing): `foodies.token` (app token) and `foodies.cache` (last `/api/bootstrap` reply, shown at once on start and when the API cannot be reached; the page itself loads offline only once the 4d service worker exists). Sign-out removes both. They do not clash with the live app's `foodies.*` keys because the sites have different origins.
+- localStorage keys, every access wrapped in try/catch (private browsing): `foodies.token` (app token), `foodies.cache` (last `/api/bootstrap` reply, shown at once on start and when the API cannot be reached) and `foodies.theme` (`light` / `dark`; absent = System; read early by the inline script in `index.html`). Sign-out removes the first two. They do not clash with the live app's `foodies.*` keys because the sites have different origins.
 - Reuse before writing: `api()` for every call, `format.ts` for anything web/ui.js or web/geo.js did, `copyText` / `toast` for clipboard and messages.
 - Behaviour follows `web/CLAUDE.md` § 4–6: location stays on the phone (`getPosition` → `distanceKm`), touch targets at least 44 px, status lines with `role="status"`, no browser dialogs (a second tap confirms), sub-views push a history entry so the phone's Back returns, tabs replace it.
 - Filtering and sorting run on every render, without memoising: cheap for 1,000+ places.
 - Routes live in `history.state` (`Route` in `App.tsx`: `view`, place `id`, `dish`, a picked `google` result or a typed `name`, a `notice`), so the phone's Back and a reload keep the view. The list and the Add tab stay mounted (hidden) under sub-views, so search, filters, chips, lookup results and the scroll position survive opening a place.
 - Adding a place: the Add tab looks up only on **Search** (each lookup can be a paid Places call). **Pick** opens the form filled from the result, which sends only the `placeId` plus the filled-in fields (`POST /api/places`; Google data comes from the server's cache, D12). On save the form's history entry is replaced by the new place's detail, with "Saved." or "This place was already in your list." (same Google place), so Back returns to a cleared Add tab.
-- Android share target: `readShare` in `App.tsx` reads `?url=&text=&title=` once at load, cleans the address and opens the Add tab with the text filled in. The manifest's `share_target` that sends those comes with 4d, so until then this path is reached only by such an address.
+- Android share target: the manifest's `share_target` (GET, `vite.config.ts`) opens `/?title=&text=&url=`; `readShare` in `App.tsx` reads it once at load, cleans the address and opens the Add tab with the text filled in. It works once the app is installed on Android; iPhone has no share target (copy the link, then **Paste**).
+- Service worker (D61, `vite-plugin-pwa`, Workbox `generateSW`): precaches only the built files (`html`, `js`, `css`, `woff2`, the icons, the manifest); navigations fall back to `index.html` except `/api/**`; no runtime caching, so API replies (private data) never enter its cache. `registerType: 'autoUpdate'`: a new deploy takes over on the next open. Registered by the `registerSW.js` file (no inline script). Not active in the Vite dev server.
+- Install: Android Chrome's `beforeinstallprompt` shows **Install app** in the top bar (`App.tsx`); iPhone Safari gets a hint in Settings unless already opened from the home screen.
+- Firebase Hosting headers (`firebase.json`): `no-cache` on `/`, `index.html`, `sw.js`, `registerSW.js` and the manifest, so a deploy reaches phones; a year, immutable, on the hashed `/assets/**`; `nosniff`, `X-Frame-Options: DENY` and `strict-origin-when-cross-origin` on every file.
 - Dishes are last-write-wins (D25). Each dish reply (`POST /api/dishes`, `PATCH` / `DELETE /api/dishes/<id>`) carries the place's `bestDish`, which is merged without changing the place's `version`. Delete needs a second tap.
 - Edits go through `patchPlace` with the version the phone loaded and only the changed fields and ratings (D24). On `409`: the form keeps the user's input, shows the server's message and offers **Load latest (drops your edits)**, which refreshes; the form is keyed by `id:version`, so it restarts with the new values. **Mark as tried** on the detail view refreshes at once and asks to try again (D59).
 - Buttons may wrap (`.button` has no `nowrap`, unlike `web/styles.css`), so long labels never widen the page on a 320 px phone.

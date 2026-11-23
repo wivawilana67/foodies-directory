@@ -167,7 +167,7 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 
 ## Local development (new stack, Docker only)
 
-The replatform (`docs/decisions.md` D39–D62) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
+The replatform (`docs/decisions.md` D39–D63) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
 
 ```bash
 sudo apt update && sudo apt install -y docker.io docker-compose-v2
@@ -188,6 +188,20 @@ Then, from the repo root:
 | Sample data to build screens against (empty local database only) | `docker compose run --rm api python manage.py seed_sample` |
 | Sign in locally (no Google sign-in in Docker) | `docker compose run --rm api python manage.py dev_token` (add `--person 2` for the second person), then paste the printed token into **Local dev token** on http://localhost:5173 |
 | Stop / wipe the local database | `docker compose down` / `docker compose down -v` (then `docker compose up -d` recreates the tables; refill with `seed_sample` or `import_sheet`) |
+
+### Restore a backup (new stack)
+
+The nightly job (`docs/decisions.md` D63) saves `foodies-<date>-<time>.dump` plus a `.sha256` file to the private backup bucket of each environment, kept 30 days. From the repo root, with `gcloud` signed in:
+
+| Task | Command |
+|---|---|
+| List backups | `gcloud storage ls gs://<project>-backups/` |
+| Download one (with its fingerprint) | `gcloud storage cp "gs://<project>-backups/foodies-2026-11-24-0200.dump*" .` |
+| Check the download is identical (also after copying it to Drive and back) | `sha256sum -c foodies-2026-11-24-0200.dump.sha256` → `foodies-2026-11-24-0200.dump: OK` |
+| Check it reads back | `docker compose run --rm --no-deps -v "$PWD:/backup" api pg_restore --list /backup/foodies-2026-11-24-0200.dump` (a table list; `TABLE DATA public places` must be in it) |
+| Restore into the local database (replaces its data) | `docker compose run --rm -v "$PWD:/backup" api sh -c 'pg_restore --clean --if-exists --no-owner --dbname "$DATABASE_URL" /backup/foodies-2026-11-24-0200.dump'` |
+
+To restore the cloud database: create a new Neon branch or project, run the same `pg_restore` with its **direct** (non-pooler) connection string, check it, then point the `DATABASE_URL` secret at it and redeploy. Neon itself can also roll back the last 6 hours (free plan). Dump files hold all the data: keep downloaded copies private, never in the repo (`*.dump` is gitignored).
 
 Cloud setup (projects, Neon, keys) is done in the browser and in Google Cloud Shell, which already has `gcloud`, so nothing is installed locally for it either. Deploys run in GitHub Actions and stay off until the repository variable `CLOUD_DEPLOY` is set to `on`.
 

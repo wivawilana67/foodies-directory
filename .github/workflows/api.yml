@@ -99,3 +99,19 @@ jobs:
             --allow-unauthenticated --min-instances=0 --max-instances=2 --memory=512Mi \
             --set-env-vars="^@^GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID@DJANGO_CSRF_TRUSTED_ORIGINS=$CSRF_ORIGINS" \
             --set-secrets=DATABASE_URL=DATABASE_URL:latest,DJANGO_SECRET_KEY=DJANGO_SECRET_KEY:latest,ALLOWED_EMAILS=ALLOWED_EMAILS:latest,PLACES_API_KEY=PLACES_API_KEY:latest
+      # Nightly backup job (D63): same image, its own service account that may only add files to the bucket and
+      # read DATABASE_URL. Settings need a secret key to load; backups sign nothing, so a placeholder is enough.
+      # Only where the environment has a backup bucket (variable BACKUP_BUCKET); Cloud Scheduler starts it.
+      - name: Update the backup job
+        if: vars.BACKUP_BUCKET != ''
+        env:
+          BACKUP_BUCKET: ${{ vars.BACKUP_BUCKET }}
+        run: |
+          gcloud run jobs deploy foodies-backup --quiet \
+            --project="$PROJECT" --region="$REGION" \
+            --image="$REGION-docker.pkg.dev/$PROJECT/foodies/api:$GITHUB_SHA" \
+            --service-account="backup-runner@$PROJECT.iam.gserviceaccount.com" \
+            --command=python --args=manage.py,backup_db \
+            --max-retries=1 --task-timeout=900s --memory=512Mi \
+            --set-env-vars="BACKUP_BUCKET=$BACKUP_BUCKET,DJANGO_SECRET_KEY=unused-by-backups" \
+            --set-secrets=DATABASE_URL=DATABASE_URL:latest

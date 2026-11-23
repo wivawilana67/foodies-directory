@@ -1,8 +1,8 @@
 # api — Developer and Agent Guide
 
-The new backend (replatform, `docs/decisions.md` D39–D62): a Django app in one Docker image. It runs locally in `docker compose` and in production on Cloud Run (`asia-southeast1`), with PostgreSQL (local container, Neon in the cloud). **Phase 3 code complete** (plus local-only sample data and sign-in for Phase 4, D58): data model, admin, sheet import, Google Sign-In with app tokens, the JSON API for places, dishes and collections, and adding places from Google. No photos for now (D57). In dev, sign-in and lookups answer "not configured" until the Phase 3 setup round sets their keys. The live backend is still `apps-script/` until the switch-over.
+The new backend (replatform, `docs/decisions.md` D39–D63): a Django app in one Docker image. It runs locally in `docker compose` and in production on Cloud Run (`asia-southeast1`), with PostgreSQL (local container, Neon in the cloud). **Phase 3 code complete** (plus local-only sample data and sign-in for Phase 4, D58): data model, admin, sheet import, Google Sign-In with app tokens, the JSON API for places, dishes and collections, and adding places from Google. No photos for now (D57). In dev, sign-in and lookups answer "not configured" until the Phase 3 setup round sets their keys. The live backend is still `apps-script/` until the switch-over.
 
-Read first: root `CLAUDE.md`, `README.md` (Local development) and `docs/decisions.md` D39–D62.
+Read first: root `CLAUDE.md`, `README.md` (Local development) and `docs/decisions.md` D39–D63.
 
 ---
 
@@ -30,12 +30,14 @@ api/
     ├── management/commands/import_sheet.py        # CSV import of the sheet (section 5)
     ├── management/commands/seed_sample.py         # Local only: made-up sample data in an empty database
     ├── management/commands/dev_token.py           # Local only: prints an app token (no Google sign-in in Docker)
+    ├── management/commands/backup_db.py           # Nightly backup: pg_dump → pg_restore --list check → backup bucket (D63)
     ├── tests.py        # health
     ├── test_models.py  # Database constraints
     ├── test_import.py  # import_sheet
     ├── test_api.py     # Sign-in and every endpoint
     ├── test_places.py  # Links, lookup, spend limits, cache, add from Google (Google mocked: no real calls)
-    └── test_dev_commands.py  # seed_sample, dev_token, and their refusal outside DJANGO_DEBUG
+    ├── test_dev_commands.py  # seed_sample, dev_token, and their refusal outside DJANGO_DEBUG
+    └── test_backup.py        # backup_db: real pg_dump of the test database, upload replaced
 ```
 
 ## 2. Data model (`foodies/models.py`)
@@ -95,6 +97,7 @@ Every endpoint except health and sign-in needs `Authorization: Bearer <app token
 | `PLACES_API_KEY` | for lookups | unset (lookup answers 503) | Secret Manager: a server key restricted to Places API (New) |
 | `DAILY_LIMIT` / `MONTHLY_LIMIT` | no | 50 / 900 | same defaults; Places requests are refused past them |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | for admin over HTTPS | unset | the site origin, e.g. the dev `.web.app` address |
+| `BACKUP_BUCKET` | for `backup_db` | unset | backup job only: the private bucket, from the GitHub environment variable `BACKUP_BUCKET` |
 
 App tokens are signed with `DJANGO_SECRET_KEY` and expire after 30 days (`APP_TOKEN_MAX_AGE`); changing the key signs everyone out. `DISABLE_SERVER_SIDE_CURSORS` is on because Neon's pooler (PgBouncer, transaction mode) cannot keep server-side cursors. Static URL `/api/static/`; the image runs `collectstatic` and WhiteNoise serves the files. Time zone `Asia/Jakarta`: sheet times without a zone are read as Jakarta time. Logs go to stdout (Cloud Logging on Cloud Run). Never log tokens, keys or a user's location.
 
@@ -110,6 +113,7 @@ App tokens are signed with `DJANGO_SECRET_KEY` and expire after 30 days (`APP_TO
 | Sheet import | `docker compose run --rm api python manage.py import_sheet --people "Name1,Name2" --places food-list.csv [--dishes dishes.csv] [--master master.csv] [--dry-run]` |
 | Sample data (local, empty database only) | `docker compose run --rm api python manage.py seed_sample` |
 | App token for local sign-in | `docker compose run --rm api python manage.py dev_token [--person 2]`; paste it into **Local dev token** on http://localhost:5173 |
+| Back up now (cloud) | `gcloud run jobs execute foodies-backup --project <project> --region asia-southeast1 --wait` (README → Restore a backup) |
 | Rebuild after changing `requirements.txt` | `docker compose build api`, then `docker compose up -d api` (a plain restart keeps the old image) |
 
 **`import_sheet`** reads CSV exports (File → Download → CSV, one per tab) placed in `api/` (mounted at `/app`). Never commit them (`.gitignore` ignores every `*.csv`). It:
@@ -139,5 +143,8 @@ App tokens are signed with `DJANGO_SECRET_KEY` and expire after 30 days (`APP_TO
 1. Builds and pushes the image to Artifact Registry `foodies`.
 2. Runs `python manage.py migrate` as the Cloud Run job `foodies-migrate` (same image and secrets) and waits. A failed migration stops the deploy, so the old version keeps serving.
 3. Deploys the Cloud Run service `foodies-api` with env vars `GOOGLE_CLIENT_ID` and `DJANGO_CSRF_TRUSTED_ORIGINS` (from the GitHub environment's variables) and secrets `DATABASE_URL`, `DJANGO_SECRET_KEY`, `ALLOWED_EMAILS`, `PLACES_API_KEY` (Secret Manager). A missing secret fails the deploy; the old version keeps serving.
+4. Where the environment has the variable `BACKUP_BUCKET`: updates the Cloud Run job `foodies-backup` to the new image (service account `backup-runner`, secret `DATABASE_URL` only, a placeholder secret key). Cloud Scheduler `foodies-backup-nightly` runs it at 02:00 Asia/Jakarta.
+
+**Backups (D63):** `backup_db` dumps the whole database with `pg_dump --format=custom` (Neon's direct host, not the `-pooler` one), reads it back with `pg_restore --list` and fails unless the `places` data is there, then uploads `foodies-<date>-<time>.dump` and a `.sha256` file with `ifGenerationMatch=0` (never overwrites) using google-auth. `backup-runner` holds only `roles/storage.objectCreator` on the bucket (it cannot read or delete backups) and access to the `DATABASE_URL` secret. The bucket (`us-central1`, public access prevention, uniform access) deletes objects after 30 days; deleted objects stay recoverable for 7 more days (soft delete). The image's `pg_dump` must not be older than Neon's Postgres version.
 
 Keep this file current (root `CLAUDE.md` § 4).

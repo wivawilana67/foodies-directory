@@ -27,3 +27,6 @@ api/staticfiles/
 /icon-source.*
 # Windows download markers copied into WSL
 *:Zone.Identifier
+# Database backups (README → Restore a backup)
+*.dump
+*.dump.sha256

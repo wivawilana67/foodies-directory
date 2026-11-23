@@ -167,7 +167,7 @@ Keep a copy of each in your password manager so a new laptop or phone can be set
 
 ## Local development (new stack, Docker only)
 
-The replatform (`docs/decisions.md` D39–D58) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
+The replatform (`docs/decisions.md` D39–D59) runs entirely in containers, so the machine only needs Docker. In WSL (Ubuntu), once:
 
 ```bash
 sudo apt update && sudo apt install -y docker.io docker-compose-v2

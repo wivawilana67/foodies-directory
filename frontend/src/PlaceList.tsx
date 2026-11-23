@@ -20,7 +20,7 @@ const NO_FILTERS: Record<FilterKey, string> = { type: '', genre: '', category: '
 
 const badge = (label: string, cls = '') => <span key={`${cls}:${label}`} className={`badge ${cls}`}>{label}</span>;
 
-function PlaceCard({ place, data, distance }: { place: Place; data: Data; distance?: number }) {
+function PlaceCard({ place, data, distance, onOpen }: { place: Place; data: Data; distance?: number; onOpen: (id: string) => void }) {
   const scores = data.people
     .map((person) => {
       const score = text(place.ratings[String(person.id)]?.score);
@@ -30,7 +30,7 @@ function PlaceCard({ place, data, distance }: { place: Place; data: Data; distan
     .join(' · ');
   return (
     <li className="card">
-      <div className="card-main">
+      <button type="button" className="card-main" onClick={() => onOpen(place.id)}>
         <h3>{place.name}</h3>
         <p className="meta">{[areaOf(place), distance !== undefined && Number.isFinite(distance) ? formatKm(distance) : ''].filter(Boolean).join(' — ')}</p>
         <p className="meta">{[place.type, place.genre, place.category].map(text).filter(Boolean).join(' · ')}</p>
@@ -40,7 +40,7 @@ function PlaceCard({ place, data, distance }: { place: Place; data: Data; distan
           {place.closed && badge('Closed', 'closed')}
           {place.labels.map((l) => badge(l, 'label'))}
         </p>
-      </div>
+      </button>
       <button type="button" className="icon-button" title="Copy name, location and link" aria-label={`Copy ${place.name}`} onClick={() => copyText(placeText(place))}>
         ⧉
       </button>
@@ -48,7 +48,9 @@ function PlaceCard({ place, data, distance }: { place: Place; data: Data; distan
   );
 }
 
-export function PlaceList({ data, tab, status, onRefresh }: { data: Data; tab: Tab; status: string; onRefresh: () => void }) {
+type Props = { data: Data; tab: Tab; status: string; onRefresh: () => void; onOpen: (id: string) => void };
+
+export function PlaceList({ data, tab, status, onRefresh, onOpen }: Props) {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState(NO_FILTERS);
   const [picked, setPicked] = useState<string[]>([]); // label chips turned on; a place must carry all of them
@@ -156,7 +158,7 @@ export function PlaceList({ data, tab, status, onRefresh }: { data: Data; tab: T
       </div>
       <p className="muted" role="status">{[status, near ? locStatus : ''].filter(Boolean).join(' ')}</p>
       <ul className="cards">
-        {list.map((p) => <PlaceCard key={p.id} place={p} data={data} distance={distance.get(p)} />)}
+        {list.map((p) => <PlaceCard key={p.id} place={p} data={data} distance={distance.get(p)} onOpen={onOpen} />)}
       </ul>
     </section>
   );

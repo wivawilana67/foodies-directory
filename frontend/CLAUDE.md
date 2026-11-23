@@ -1,8 +1,8 @@
 # frontend — Developer and Agent Guide
 
-The new phone app (replatform, `docs/decisions.md` D39–D58): React + TypeScript + Vite, built to static files and served by Firebase Hosting, which sends `/api/**` to Cloud Run (`firebase.json`). **Phase 4a**: sign-in, the All / Wishlist / Near me lists (search, label chips, filters, score or distance sort, Copy list, copy per card), Settings with sign-out, and an offline copy of `/api/bootstrap`. Still to come: place detail and edit (4b), dishes and Add (4c), theme setting, install and service worker (4d); until 4b, cards do not open. The live app is still `web/` until the switch-over; its rules (iPhone Safari without install, location stays on the phone, Sticker design) carry over.
+The new phone app (replatform, `docs/decisions.md` D39–D59): React + TypeScript + Vite, built to static files and served by Firebase Hosting, which sends `/api/**` to Cloud Run (`firebase.json`). **Phase 4b**: sign-in, the All / Wishlist / Near me lists (search, label chips, filters, score or distance sort, Copy list, copy per card), place detail (Maps, Instagram, Copy, Share, Mark as tried, scores, dishes listed) and the edit form with the conflict check, Settings with sign-out, and an offline copy of `/api/bootstrap`. Still to come: adding and editing dishes and Add a place (4c), theme setting, install and service worker (4d). The live app is still `web/` until the switch-over; its rules (iPhone Safari without install, location stays on the phone, Sticker design) carry over.
 
-Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.md` D39–D58 and `web/CLAUDE.md` (behaviour being ported).
+Read first: root `CLAUDE.md`, `README.md` (Local development), `docs/decisions.md` D39–D59 and `web/CLAUDE.md` (behaviour being ported).
 
 ---
 
@@ -17,12 +17,15 @@ frontend/
 ├── index.html
 └── src/
     ├── main.tsx                       # React root; imports styles.css
-    ├── App.tsx                        # Shell: sign-in state, bootstrap load + offline copy, top bar, bottom tabs, Back button
+    ├── App.tsx                        # Shell: sign-in, bootstrap load + offline copy, routes (list / place / form / settings),
+    │                                  #   top bar, bottom tabs, Back button, savePlace (merges a saved place into data + cache)
     ├── SignIn.tsx                     # Google Sign-In button; in the Vite dev server only, a "Local dev token" field
     ├── PlaceList.tsx                  # All / Wishlist / Near me (port of web/list.js): search, filters, label chips, sort, cards
+    ├── PlaceDetail.tsx                # Place detail (port of renderPlace): actions, scores, price, best dish, dishes (read-only)
+    ├── PlaceForm.tsx                  # Edit form (port of openForm / formFields): ChoiceField, LabelsField, suggest fields
     ├── Settings.tsx                   # Signed-in name, Sign out, Sign out on every device (second tap confirms)
     ├── Toast.tsx                      # toast(message) + <Toast />, copyText (clipboard with textarea fallback)
-    ├── api.ts                         # api(path, method, body), ApiError, token + cache in localStorage
+    ├── api.ts                         # api(path, method, body), ApiError, patchPlace, token + cache in localStorage
     ├── format.ts                      # Ported helpers: text, areaOf, locationOf, unique, coordsOf, formatKm, mapsHref,
     │                                  #   placeText, averageRank, distanceKm, getPosition
     ├── types.ts                       # API JSON shapes (Place, Dish, Person, Collection, Options, Data)
@@ -54,6 +57,9 @@ The `web` container runs as user `node` (uid 1000), so `node_modules/` and `pack
 - Reuse before writing: `api()` for every call, `format.ts` for anything web/ui.js or web/geo.js did, `copyText` / `toast` for clipboard and messages.
 - Behaviour follows `web/CLAUDE.md` § 4–6: location stays on the phone (`getPosition` → `distanceKm`), touch targets at least 44 px, status lines with `role="status"`, no browser dialogs (a second tap confirms), sub-views push a history entry so the phone's Back returns, tabs replace it.
 - Filtering and sorting run on every render, without memoising: cheap for 1,000+ places.
+- Routes live in `history.state` as `{view, id}` (`App.tsx`), so the phone's Back and a reload keep the view. The list stays mounted (hidden) under sub-views, so search, filters, chips and the scroll position survive opening a place.
+- Edits go through `patchPlace` with the version the phone loaded and only the changed fields and ratings (D24). On `409`: the form keeps the user's input, shows the server's message and offers **Load latest (drops your edits)**, which refreshes; the form is keyed by `id:version`, so it restarts with the new values. **Mark as tried** on the detail view refreshes at once and asks to try again (D59).
+- Buttons may wrap (`.button` has no `nowrap`, unlike `web/styles.css`), so long labels never widen the page on a 320 px phone.
 
 ## 4. Deploy
 

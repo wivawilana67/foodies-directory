@@ -1,6 +1,6 @@
 // API calls and on-device storage. The app token and the offline copy of /api/bootstrap live only in this
 // browser's localStorage; every access is wrapped in try/catch (private browsing can block storage).
-import type { Data } from './types';
+import type { Data, Place } from './types';
 
 const KEYS = { token: 'foodies.token', cache: 'foodies.cache' };
 
@@ -64,3 +64,8 @@ export async function api<T>(path: string, method = 'GET', body?: unknown): Prom
   if (!response.ok || !data.ok) throw new ApiError(data.error ?? `Server error ${response.status}`, response.status);
   return data as T;
 }
+
+// Edits a place: only changed fields and ratings ({personId: {score?, review?}}), with the version the phone
+// loaded. The API answers 409 when the place changed since then (D24).
+export const patchPlace = (place: Place, changes: object, ratings?: object) =>
+  api<{ place: Place }>(`/api/places/${place.id}`, 'PATCH', { version: place.version, changes, ratings }).then((r) => r.place);

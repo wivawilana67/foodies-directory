@@ -181,9 +181,9 @@ legend { padding: 0; font-weight: 700; }
   background: var(--surface);
   color: var(--text);
   font: 800 0.95rem var(--body);
+  text-align: center;
   text-decoration: none;
-  white-space: nowrap;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow); /* labels wrap only when a narrow phone needs it */
   transition: transform 80ms ease, box-shadow 80ms ease;
 }
 
@@ -286,12 +286,51 @@ legend { padding: 0; font-weight: 700; }
   box-shadow: 2px 2px 0 var(--line);
 }
 
-.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+.chip.on, .chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
 
 /* Filters panel */
 details { padding: 4px 0; }
 summary { min-height: 40px; display: flex; align-items: center; gap: 6px; font-weight: 800; cursor: pointer; }
 details label { margin-top: 8px; }
+
+/* Place detail */
+.actions { margin-top: 12px; }
+
+.detail-section {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 2px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface);
+}
+
+.detail-section h3 { margin: 0; color: var(--muted); font-family: var(--body); font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.detail-section p { margin: 0; }
+.person + .person { margin-top: 8px; padding-top: 8px; border-top: 2px dashed var(--soft); }
+.score strong { font-family: var(--display); font-weight: 600; }
+.review { margin-top: 2px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Dishes */
+.dishes { display: grid; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; }
+
+.dish {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--soft);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.dish-name { font-weight: 800; }
+.dish-note { overflow-wrap: anywhere; }
 
 /* "Copied" message */
 .toast {

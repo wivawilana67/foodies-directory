@@ -5,7 +5,7 @@ A phone-friendly directory of places to eat for two people, kept in a Google She
 - `apps-script/` — backend: a Google Apps Script web app. Reads and writes the sheet, calls the Places API (New), holds the API key, counts spend, runs the backfill.
 - `web/` — front end: an installable web app (PWA) served by GitHub Pages. All / Wishlist / Near me lists, place detail and edit, dishes, add a place.
 
-A replacement stack is being built next to it (`docs/decisions.md` D39–D58): `api/` (Django on Cloud Run, Neon Postgres) and `frontend/` (React PWA on Firebase Hosting). Until the switch-over, `apps-script/` + `web/` are the live app.
+A replacement stack is being built next to it (`docs/decisions.md` D39–D59): `api/` (Django on Cloud Run, Neon Postgres) and `frontend/` (React PWA on Firebase Hosting). Until the switch-over, `apps-script/` + `web/` are the live app.
 
 The Google Sheet is the database. **This repo is public** (free GitHub Pages): no secret, token, script ID, sheet ID or deployment URL is ever committed.
 
@@ -40,7 +40,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 │       └── *.js                # Api, Config, Sheet, Dishes, Photos, Places, MapsLink, Usage, Backfill, Setup
 ├── api/                        # New backend (Django in Docker; Phase 3: data model, admin, import, sign-in, JSON API, Places lookup)
 │   └── CLAUDE.md               # Files, endpoints, env settings, Docker commands  ← read before editing
-├── frontend/                   # New front end (React + TypeScript + Vite; Phase 4a: sign-in, All / Wishlist / Near me lists)
+├── frontend/                   # New front end (React + TypeScript + Vite; Phase 4b: sign-in, lists, place detail and edit)
 │   └── CLAUDE.md               # Files, Docker commands, conventions  ← read before editing
 └── web/                        # Front end (static PWA, no build step)
     ├── CLAUDE.md               # File map, conventions, platform rules  ← read before editing
@@ -90,7 +90,7 @@ The Google Sheet is the database. **This repo is public** (free GitHub Pages): n
 | New stack: API endpoints / settings / image | `api/config/`, `api/foodies/`, `api/Dockerfile` |
 | New stack: tables, admin, sheet import | `api/foodies/models.py` (+ `makemigrations`), `api/foodies/admin.py`, `api/foodies/management/commands/import_sheet.py` |
 | New stack: local sample data and sign-in | `api/foodies/management/commands/seed_sample.py`, `dev_token.py` (DJANGO_DEBUG only) |
-| New stack: screens | `frontend/src/` (`App.tsx` shell and tabs, `PlaceList.tsx`, `SignIn.tsx`, `Settings.tsx`, `styles.css`) |
+| New stack: screens | `frontend/src/` (`App.tsx` shell, routes and tabs, `PlaceList.tsx`, `PlaceDetail.tsx`, `PlaceForm.tsx`, `SignIn.tsx`, `Settings.tsx`, `styles.css`) |
 | New stack: deploy (Cloud Run, Firebase Hosting) | `.github/workflows/api.yml`, `.github/workflows/frontend.yml`, `firebase.json`; GitHub environment variables `dev` / `prod` |
 | Test environment (site path, storage prefix, banner) | `.github/workflows/pages.yml`, `IS_TEST` in `web/api.js`, `apps-script/.clasp-test.json` (local) + `push-test` |
 
@@ -122,7 +122,7 @@ The code wins when docs disagree — then fix the docs in the same change. There
    - The Places API key lives only in Script Properties. No secrets, IDs or URLs from Section 5 in code, logs, docs or commits.
 4. **Spend is a feature.** Every Places API call goes through `getPlace_` / `searchText_`, which reserve quota first. No new Places method or field without updating `docs/decisions.md` and checking the price tier.
 5. **Logged and fail-loud.** Log entry points and writes (no tokens, no location); catch, log with context, re-throw or return a clear error.
-6. **Match the stack.** Live app: Apps Script V8; vanilla HTML/CSS/JS ES modules; Google Sheets as storage. New stack (owner-approved, D39–D58): Django + PostgreSQL in `api/`, React + TypeScript + Vite in `frontend/`. Local tooling runs only in Docker (`docker-compose.yml`); nothing else is installed on the machine. No other framework, runtime package or CDN script without the owner's approval.
+6. **Match the stack.** Live app: Apps Script V8; vanilla HTML/CSS/JS ES modules; Google Sheets as storage. New stack (owner-approved, D39–D59): Django + PostgreSQL in `api/`, React + TypeScript + Vite in `frontend/`. Local tooling runs only in Docker (`docker-compose.yml`); nothing else is installed on the machine. No other framework, runtime package or CDN script without the owner's approval.
 7. **Match the surrounding code** — naming, comment density, idiom.
 8. **Facts only.** Never invent APIs, sheet headers or rules. Unverified assumptions are marked "Unverified" in code and docs until confirmed.
 
